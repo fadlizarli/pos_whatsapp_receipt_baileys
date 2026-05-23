@@ -1,8 +1,8 @@
 {
-    'name': 'POS WhatsApp Receipt',
-    'version': '17.0.2.0.0',
+    'name': 'POS WhatsApp Receipt (Baileys)',
+    'version': '17.0.1.0.0',
     'category': 'Point of Sale',
-    'summary': 'Kirim resit POS via WhatsApp menggunakan OpenWA',
+    'summary': 'Kirim struk POS via WhatsApp menggunakan Baileys (tanpa Chromium)',
     'depends': ['point_of_sale', 'web'],
     'data': [
         'views/res_config_settings_views.xml',
@@ -10,8 +10,8 @@
     ],
     'assets': {
         'point_of_sale._assets_pos': [
-            'pos_whatsapp_receipt_openwa/static/src/xml/receipt_button.xml',
-            'pos_whatsapp_receipt_openwa/static/src/js/receipt_button.js',
+            'pos_whatsapp_receipt_baileys/static/src/xml/receipt_button.xml',
+            'pos_whatsapp_receipt_baileys/static/src/js/receipt_button.js',
         ],
     },
     'installable': True,
