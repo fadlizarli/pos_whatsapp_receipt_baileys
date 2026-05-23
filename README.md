@@ -18,9 +18,9 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Tampilan struk lengkap: logo toko, kasir, item, metode pembayaran, kembalian
 - Link struk bisa dibuka tanpa login (public access)
 - **Responsive di mobile**
-- **Automatic Link Preview** — Baileys auto-detect URL di pesan dan generate preview card dengan judul, deskripsi, dan thumbnail
-- **Reliable dan sederhana** — menggunakan `link-preview-js` untuk metadata extraction, tidak perlu manual image handling
-- **Preview card muncul otomatis** di WhatsApp saat URL terdeteksi — konsisten di semua device
+- **Logo otomatis dikirim dengan pesan** — toko logo dikirim sebagai gambar WhatsApp dengan teks pesan sebagai caption
+- **Reliable dan sederhana** — tidak perlu metadata extraction atau link preview parsing
+- **Tampilan konsisten** di semua device (Web, Mobile, Desktop) — sama untuk sender dan receiver
 - Integrasi dengan Baileys server (self-hosted, gratis, open-source, tanpa Chromium)
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
@@ -31,7 +31,7 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 ## Requirement
 
 - Odoo 17.0
-- Node.js >= 18.0.0 (untuk Baileys server)
+- Node.js >= 18.0.0 (untuk Baileys server v7 dengan ESM support)
 - Module Odoo: `point_of_sale`, `web`
 
 ---
@@ -96,6 +96,8 @@ npm install
 npm start
 ```
 
+> **Note**: Baileys v7 menggunakan ESM modules. Jika upgrade dari v6, auth session lama mungkin tidak kompatibel.
+
 ### 4. Scan QR WhatsApp
 
 Buka browser dan akses:
@@ -104,6 +106,12 @@ http://IP-SERVER:3000/qr
 ```
 
 Scan QR code dengan WhatsApp di HP → **Perangkat Tertaut → Tautkan Perangkat**.
+
+> **Catatan untuk upgrade v6→v7**: Jika mendapat error atau koneksi gagal setelah upgrade, hapus folder `auth_info` dan scan QR ulang:
+> ```bash
+> rm -rf /opt/odoo/custom-addons/pos_whatsapp_receipt_baileys/baileys-server/auth_info
+> # Restart server
+> ```
 
 ### 5. Verifikasi status koneksi
 
@@ -231,19 +239,19 @@ sudo -u odoo psql -d NAMA_DATABASE -c \
 6. Pesan sukses/gagal ditampilkan di bawah input field
 7. Pelanggan menerima pesan WA dengan link struk lengkap yang dapat dibuka tanpa login
 
-### WhatsApp Receipt dengan Preview Card
+### WhatsApp Receipt dengan Logo Toko
 
 Saat struk dikirim via WhatsApp:
-- **URL Detection**: Baileys menggunakan `link-preview-js` untuk auto-detect URL di pesan
-- **Preview Card**: WhatsApp auto-generate preview card dengan title, description, dan thumbnail
-- **Teks Pesan**: Pesan dari template (total, tanggal, link struk) ditampilkan bersama preview
+- **Logo Toko**: Jika ada, logo company dari Odoo dikirim sebagai gambar WhatsApp
+- **Teks Pesan**: Pesan dari template (total, tanggal, link struk) dikirim sebagai caption di bawah logo
+- **Format**: Logo di-resize ke JPEG 512x512px dengan quality 85 untuk optimal file size
 
 **Keuntungan:**
 - Tampilan **konsisten di semua device** (Web, Mobile, Desktop)
-- **Automatic** — tidak perlu manual image handling atau metadata building
-- **Reliable** — `link-preview-js` menangani URL parsing dan metadata extraction
-- **Graceful fallback** — jika URL tidak bisa di-extract, teks pesan tetap terkirim dengan sukses
-- Lebih sederhana dari pendekatan image+caption sebelumnya
+- **Reliable** — tidak perlu metadata extraction atau URL parsing dari WhatsApp
+- **Graceful fallback** — jika tidak ada logo, teks pesan tetap terkirim saja
+- **Sederhana** — tanpa dependency eksternal untuk link preview parsing
+- **Stabil** — tidak ada timeout atau network error dari metadata fetch
 
 > **Catatan**: Link struk menggunakan `receipt_url` (bisa short URL dari YOURLS atau full URL). Pastikan `web.base.url` sudah diatur dengan domain yang benar di Odoo settings.
 
@@ -305,6 +313,14 @@ pm2 list
 
 Keduanya akan memastikan Baileys **auto-start saat VPS reboot** dan **auto-restart jika process crash**.
 
+**Error: "Cannot use import statement outside a module"**
+
+Baileys v7 menggunakan ESM. Pastikan:
+1. Node.js >= 18.0.0
+2. File `baileys-server/package.json` punya `"type": "module"`
+3. Server.js menggunakan `import` (bukan `require`)
+4. Jika custom code, ganti semua `require()` dengan `import`
+
 **Test kirim pesan manual:**
 ```bash
 curl -s -X POST http://localhost:3000/send-message \
@@ -332,20 +348,20 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 ```json
 {
   "phone": "628xxxxxxxxxx",
-  "message": "Terima kasih! Total: Rp 100.000. Lihat struk: https://domain.com/resit/lihat?access_token=..."
+  "message": "Terima kasih! Total: Rp 100.000. Lihat struk: https://domain.com/resit/lihat?access_token=...",
+  "jpeg_thumbnail": "base64_encoded_image_data_optional"
 }
 ```
 
-**Fitur Automatic Link Preview:**
-1. Odoo kirim `message` yang mengandung URL ke Baileys
-2. **Baileys gunakan `link-preview-js`** untuk auto-detect URL dan extract metadata
-3. WhatsApp auto-generate **preview card** dengan:
-   - Title (dari Open Graph meta tags atau page title)
-   - Description (dari Open Graph meta tags atau page description)
-   - Thumbnail (dari Open Graph meta tags atau page favicon)
-4. Tampilan **konsisten di semua device** — preview card tampil sama di Web, Mobile, Desktop
-5. **Lebih reliable** — tidak perlu manual image resizing atau metadata building
-6. **Graceful fallback** — jika URL tidak bisa di-extract, teks pesan tetap terkirim saja
+**Fitur Logo dengan Caption:**
+1. Odoo prepare `message` dari template dan optional `jpeg_thumbnail` (base64 encoded)
+2. **Jika ada logo**: Baileys kirim pesan dengan tipe `imageMessage` (gambar + caption)
+   - Logo dikirim sebagai gambar WhatsApp
+   - Teks pesan dikirim sebagai caption di bawah logo
+3. **Jika tidak ada logo**: Baileys kirim pesan dengan tipe `textMessage` saja
+4. Tampilan **konsisten di semua device** — sama untuk Web, Mobile, Desktop, sender, receiver
+5. **Reliable** — tidak ada timeout atau network call dari link preview parsing
+6. **Graceful fallback** — jika logo tidak tersedia, teks tetap terkirim tanpa error
 
 ---
 
@@ -377,43 +393,53 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.2.8.0 (Current)
-- **Automatic Link Preview dengan `link-preview-js`** (simplified dari v17.0.2.7.0):
+### v17.0.3.0.0 (Current)
+- **Upgrade Baileys v6 → v7** (major version jump):
+  - Baileys v7 menggunakan **ESM modules** (ES6 import/export) — bukan CommonJS
+  - Changed package: `@whiskeysockets/baileys@6.7.9` → `baileys@7.0.0-rc13`
+  - Updated server.js: semua `require()` diganti dengan `import`, tambah `"type": "module"` di package.json
+  - Removed `fetchLatestBaileysVersion()` — v7 otomatis handle version management
+  - Simplified socket initialization — v7 lebih streamlined
+  - **Breaking change**: Hosting WhatsApp session mungkin perlu **scan QR ulang** setelah upgrade (old auth_info tidak kompatibel)
+  - **Benefits**: Lebih lightweight, lebih cepat, dukungan long-term lebih baik
+
+### v17.0.2.9.0
+- **Revert ke Image+Caption Approach** (hapus `link-preview-js` yang problematic):
+  - `link-preview-js` gagal fetch URL dari dalam VPS → pesan tidak terkirim
+  - **Kembali ke pendekatan image+caption yang stabil dan terbukti jalan**
+  - Odoo resize logo ke JPEG 512x512px dengan quality 85
+  - Logo dikirim sebagai gambar WhatsApp dengan teks pesan sebagai caption
+  - Server.js: `jpeg_thumbnail` di-decode dari base64 dan dikirim sebagai `imageMessage`
+  - **Graceful fallback**: tanpa logo → teks pesan saja, tetap terkirim sukses
+  - Removed `link-preview-js` dependency dari package.json
+  - **Stabil & reliable** — tidak ada timeout atau network dependency dari link preview fetch
+
+### v17.0.2.8.0
+- **Automatic Link Preview dengan `link-preview-js`** (deprecated di v17.0.2.9.0):
   - Tambah dependency `link-preview-js` untuk URL metadata extraction
-  - **Hilangkan manual image+caption code** — Odoo tidak perlu resize logo atau build preview object
   - Baileys otomatis detect URL di pesan dan generate preview card menggunakan `link-preview-js`
-  - **Lebih sederhana & reliable** — tidak perlu manual metadata building atau image processing
-  - Tampilan **konsisten di semua device** (Web, Mobile, Desktop) — preview card sama untuk sender & receiver
-  - **Graceful fallback** — jika URL tidak bisa di-extract, teks pesan tetap terkirim tanpa error
-  - Kontroller main.py jadi lebih simpel: hanya kirim `{ phone, message }` tanpa `preview` object
+  - **Masalah**: `link-preview-js` gagal fetch URL dari VPS → pesan tidak terkirim
+  - Di-revert ke image+caption di v17.0.2.9.0
 
 ### v17.0.2.7.0
-- **Manual Link Preview Build** (deprecated di v17.0.2.8.0):
+- **Manual Link Preview Build** (deprecated):
   - Odoo prepare metadata: title, description, logo thumbnail (resize ke 300px JPEG)
   - Baileys build `extendedTextMessage` dengan format yang sama saat paste URL manual di WhatsApp
-  - Preview card muncul di bawah teks pesan — konsisten di semua device
 
 ### v17.0.2.6.0
-- **Automatic Link Preview dengan `getUrlInfo()` dan fix `timeoutMs`** (deprecated di v17.0.2.7.0):
-  - Menggunakan Baileys `getUrlInfo()` dengan opsi `timeoutMs` (bukan `fetchOpts.timeout`)
+- **Automatic Link Preview dengan `getUrlInfo()` dan fix `timeoutMs`** (deprecated):
+  - Menggunakan Baileys `getUrlInfo()` dengan opsi `timeoutMs`
   - Pass `receipt_url` dari Odoo ke Baileys untuk metadata extraction
-  - Graceful fallback jika `getUrlInfo` timeout/error
 
 ### v17.0.2.5.0
-- **Logo otomatis di-resize ke JPEG 512px sebelum kirim** (deprecated di v17.0.2.6.0):
+- **Logo otomatis di-resize ke JPEG 512px sebelum kirim** (deprecated):
   - Konversi dari format asli (PNG, JPG, dll) ke JPEG dengan quality 85
   - Dikompres ke maksimal 512x512 pixels agar lebih kecil dan cepat upload
-  - Mengurangi beban jaringan dan waktu pengiriman
-  - Kompatibel dengan semua versi WhatsApp (Web, Mobile, Desktop)
-  - Graceful fallback: jika resize gagal, teks pesan tetap terkirim tanpa logo
 
 ### v17.0.2.4.0
-- **Logo dikirim sebagai Image WhatsApp** — bukan preview card (deprecated di v17.0.2.7.0):
+- **Logo dikirim sebagai Image WhatsApp** — bukan preview card:
   - Logo toko dikirim sebagai gambar WhatsApp dengan teks pesan sebagai caption
   - Tampilan **konsisten di semua device** (Web, Mobile, Desktop)
-  - Sama untuk **sender dan receiver** — tidak ada perbedaan tampilan
-  - Tidak perlu parsing URL atau fetch metadata
-  - Graceful fallback: jika tidak ada logo, teks pesan tetap terkirim
 
 ### v17.0.2.3.0
 - **WhatsApp Preview Card dengan Logo dari Odoo**:
