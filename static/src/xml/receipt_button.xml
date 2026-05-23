@@ -2,9 +2,10 @@
 <templates id="template" xml:space="preserve">
 
     <t t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension">
-        <xpath expr="//button[hasclass('next')]" position="before">
-            <button class="btn btn-success btn-lg wa-send-btn" t-on-click="onClickSendWhatsApp">
-                <i class="fa fa-whatsapp me-1"/> Kirim via WhatsApp
+        <xpath expr="//div[hasclass('button-container')]" position="before">
+            <button class="btn btn-success btn-lg w-100" t-on-click="onClickSendWhatsApp"
+                    style="background-color:#25D366; border-color:#25D366;">
+                <i class="fa fa-whatsapp me-2"/> Kirim via WhatsApp
             </button>
         </xpath>
     </t>
@@ -23,8 +24,9 @@
             </div>
             <t t-set-slot="footer">
                 <button class="btn btn-secondary me-2" t-on-click="onCancel">Batal</button>
-                <button class="btn btn-success" t-on-click="onConfirm">
-                    <i class="fa fa-paper-plane me-1"/> Kirim
+                <button class="btn btn-success" style="background-color:#25D366; border-color:#25D366;"
+                        t-on-click="onConfirm">
+                    <i class="fa fa-whatsapp me-2"/> Kirim
                 </button>
             </t>
         </Dialog>

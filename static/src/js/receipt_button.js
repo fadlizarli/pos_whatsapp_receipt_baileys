@@ -31,7 +31,7 @@ class WhatsAppDialog extends Component {
     }
 }
 
-patch(ReceiptScreen, {
+patch(ReceiptScreen.prototype, {
     setup() {
         super.setup();
         this.dialog = useService("dialog");
