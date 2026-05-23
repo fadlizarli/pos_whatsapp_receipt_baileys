@@ -14,19 +14,18 @@ class PosOrder(models.Model):
             return {'success': False, 'error': 'Order not found'}
 
         params = self.env['ir.config_parameter'].sudo()
-        base_url = params.get_param('pos_whatsapp_receipt.openwa_base_url')
-        api_key = params.get_param('pos_whatsapp_receipt.openwa_api_key')
-        session_id = params.get_param('pos_whatsapp_receipt.openwa_session_id') or 'default'
-        template = params.get_param('pos_whatsapp_receipt.openwa_message_template')
+        baileys_url = params.get_param('pos_whatsapp_receipt_baileys.baileys_url')
+        api_key = params.get_param('pos_whatsapp_receipt_baileys.baileys_api_key')
+        template = params.get_param('pos_whatsapp_receipt_baileys.baileys_message_template')
 
-        if not base_url or not api_key:
-            return {'success': False, 'error': 'OpenWA belum dikonfigurasi (Base URL dan API Key wajib diisi)'}
+        if not baileys_url or not api_key:
+            return {'success': False, 'error': 'Baileys belum dikonfigurasi (URL dan API Key wajib diisi)'}
 
         web_base_url = params.get_param('web.base.url')
         long_url = f"{web_base_url}/resit/lihat?access_token={order.access_token}"
 
-        yourls_url = params.get_param('pos_whatsapp_receipt.yourls_url')
-        yourls_signature = params.get_param('pos_whatsapp_receipt.yourls_signature')
+        yourls_url = params.get_param('pos_whatsapp_receipt_baileys.yourls_url')
+        yourls_signature = params.get_param('pos_whatsapp_receipt_baileys.yourls_signature')
         receipt_url = long_url
         if yourls_url and yourls_signature:
             try:
@@ -51,21 +50,19 @@ class PosOrder(models.Model):
         if phone.startswith('0'):
             phone = '62' + phone[1:]
 
-        chat_id = f"{phone}@c.us"
-
         try:
             response = requests.post(
-                f"{base_url.rstrip('/')}/api/sessions/{session_id}/messages/send-text",
+                f"{baileys_url.rstrip('/')}/send-message",
                 headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
-                json={'chatId': chat_id, 'text': message},
-                timeout=10
+                json={'phone': phone, 'message': message},
+                timeout=15
             )
             if response.status_code in (200, 201):
                 return {'success': True}
             else:
                 result = response.json() if response.content else {}
-                error_msg = result.get('message') or result.get('error') or f"HTTP {response.status_code}"
-                _logger.error("OpenWA error: %s", result)
+                error_msg = result.get('error') or f"HTTP {response.status_code}"
+                _logger.error("Baileys error: %s", result)
                 return {'success': False, 'error': error_msg}
         except Exception as e:
             return {'success': False, 'error': str(e)}
