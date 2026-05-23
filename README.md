@@ -96,7 +96,6 @@ Buka browser dan akses:
 ```
 http://IP-SERVER:3000/qr
 ```
-Header: `x-api-key: API_KEY_ANDA`
 
 Scan QR code dengan WhatsApp di HP → **Perangkat Tertaut → Tautkan Perangkat**.
 
