@@ -1,5 +1,8 @@
 import requests
 import logging
+import base64
+import io
+from PIL import Image
 from odoo import http
 from odoo.http import request, Response
 
@@ -60,7 +63,15 @@ class PosWhatsAppReceipt(http.Controller):
 
         logo_b64 = ''
         if company.logo:
-            logo_b64 = company.logo.decode('utf-8') if isinstance(company.logo, bytes) else company.logo
+            try:
+                raw = base64.b64decode(company.logo)
+                img = Image.open(io.BytesIO(raw)).convert('RGB')
+                img.thumbnail((512, 512))
+                buf = io.BytesIO()
+                img.save(buf, format='JPEG', quality=85)
+                logo_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+            except Exception:
+                logo_b64 = ''
 
         preview = {
             'title': f"Struk Pembayaran - {company.name}",
