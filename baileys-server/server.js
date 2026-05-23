@@ -1,15 +1,12 @@
-require('dotenv').config();
-
-const {
-    default: makeWASocket,
+import 'dotenv/config';
+import makeWASocket, {
     useMultiFileAuthState,
     DisconnectReason,
-    fetchLatestBaileysVersion,
-} = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
-const express = require('express');
-const pino = require('pino');
-const QRCode = require('qrcode');
+} from 'baileys';
+import { Boom } from '@hapi/boom';
+import express from 'express';
+import pino from 'pino';
+import QRCode from 'qrcode';
 
 const app = express();
 app.use(express.json());
@@ -47,10 +44,8 @@ async function connectToWhatsApp() {
     isConnecting = true;
 
     const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
-    const { version } = await fetchLatestBaileysVersion();
 
     sock = makeWASocket({
-        version,
         auth: state,
         logger,
         printQRInTerminal: true,
@@ -108,7 +103,6 @@ app.get('/qr', (req, res) => {
     if (!qrDataUrl) {
         return res.json({ connected: false, qr: null, message: 'QR belum siap, tunggu beberapa detik' });
     }
-    // Tampilkan QR sebagai halaman HTML untuk kemudahan scan
     res.send(`<!DOCTYPE html><html><head><title>Scan QR WhatsApp</title></head>
 <body style="text-align:center;font-family:sans-serif;padding:40px">
 <h2>Scan QR dengan WhatsApp</h2>
@@ -147,5 +141,5 @@ connectToWhatsApp();
 
 app.listen(PORT, () => {
     console.log(`Baileys server berjalan di port ${PORT}`);
-    console.log(`Scan QR: GET http://localhost:${PORT}/qr  (x-api-key: <API_KEY>)`);
+    console.log(`Scan QR: GET http://localhost:${PORT}/qr`);
 });

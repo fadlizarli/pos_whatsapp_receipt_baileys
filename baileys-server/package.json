@@ -1,6 +1,7 @@
 {
   "name": "baileys-whatsapp-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "REST API server untuk kirim WhatsApp via Baileys (pengganti OpenWA/Chromium)",
   "main": "server.js",
   "scripts": {
@@ -9,7 +10,7 @@
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "^6.7.9",
+    "baileys": "^7.0.0-rc13",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "pino": "^9.3.2",
