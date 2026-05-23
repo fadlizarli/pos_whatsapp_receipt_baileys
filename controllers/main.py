@@ -112,12 +112,35 @@ class PosWhatsAppReceipt(http.Controller):
         phone_html = f'<p>{company.phone}</p>' if company.phone else ''
         email_html = f'<p>{company.email}</p>' if company.email else ''
 
+        web_base_url = request.env['ir.config_parameter'].sudo().get_param('web.base.url')
+        receipt_url = f"{web_base_url}/resit/lihat?access_token={order.access_token}"
+        logo_url = f"{web_base_url}/web/image/res.company/{company.id}/logo"
+
+        items_preview = ', '.join(
+            f"{line.product_id.name} x{int(line.qty)}"
+            for line in order.lines[:3]
+        )
+        if len(order.lines) > 3:
+            items_preview += f", +{len(order.lines) - 3} item lainnya"
+
+        og_description = f"Total: Rp {order.amount_total:,.0f} | {items_preview}"
+
         html = f'''<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Struk Pembayaran</title>
+    <title>Struk Pembayaran - {company.name}</title>
+    <meta property="og:type" content="website"/>
+    <meta property="og:url" content="{receipt_url}"/>
+    <meta property="og:title" content="Struk Pembayaran - {company.name}"/>
+    <meta property="og:description" content="{og_description}"/>
+    <meta property="og:image" content="{logo_url}"/>
+    <meta property="og:site_name" content="{company.name}"/>
+    <meta name="twitter:card" content="summary"/>
+    <meta name="twitter:title" content="Struk Pembayaran - {company.name}"/>
+    <meta name="twitter:description" content="{og_description}"/>
+    <meta name="twitter:image" content="{logo_url}"/>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{ font-family: Arial, sans-serif; background: #f0f0f0; padding: 16px; }}
