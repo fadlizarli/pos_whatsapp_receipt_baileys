@@ -2,7 +2,7 @@
 <templates id="template" xml:space="preserve">
 
     <t t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension">
-        <xpath expr="//div[hasclass('button-container')]" position="inside">
+        <xpath expr="//button[hasclass('next')]" position="before">
             <button class="btn btn-success btn-lg wa-send-btn" t-on-click="onClickSendWhatsApp">
                 <i class="fa fa-whatsapp me-1"/> Kirim via WhatsApp
             </button>
@@ -10,7 +10,7 @@
     </t>
 
     <t t-name="pos_whatsapp_receipt_baileys.WhatsAppDialog" owl="1">
-        <Dialog title="title" t-on-dialog-closed="onCancel">
+        <Dialog title="title">
             <div class="p-4">
                 <p class="mb-2 fw-bold">Nomor WhatsApp pelanggan:</p>
                 <input
