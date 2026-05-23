@@ -5,6 +5,7 @@ const {
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
+    getUrlInfo,
 } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const express = require('express');
@@ -131,7 +132,24 @@ app.post('/send-message', authMiddleware, async (req, res) => {
     const jid = formatPhone(phone);
 
     try {
-        await sock.sendMessage(jid, { text: message });
+        let msgPayload = { text: message };
+
+        const urlMatch = message.match(/https?:\/\/[^\s]+/);
+        if (urlMatch) {
+            try {
+                const urlInfo = await getUrlInfo(urlMatch[0], {
+                    thumbnailWidth: 300,
+                    fetchOpts: { timeout: 5000 },
+                });
+                if (urlInfo) {
+                    msgPayload = { text: message, ...urlInfo };
+                }
+            } catch (previewErr) {
+                console.warn('Link preview gagal, kirim tanpa preview:', previewErr.message);
+            }
+        }
+
+        await sock.sendMessage(jid, msgPayload);
         res.json({ success: true });
     } catch (err) {
         console.error('Gagal kirim pesan:', err.message);
