@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "Check if any source code files (Python, JavaScript, XML) in this repository were modified in this session by running: git diff HEAD --name-only. If code files were changed AND README.md exists at the repo root, update README.md so it accurately reflects the current state of the code. Things to keep in sync: module name, version, features list, configuration fields and their names, API endpoints, setup steps, file structure diagram, and changelog. If no code files changed, do nothing.",
+            "timeout": 90
+          }
+        ]
+      }
+    ]
+  }
+}
