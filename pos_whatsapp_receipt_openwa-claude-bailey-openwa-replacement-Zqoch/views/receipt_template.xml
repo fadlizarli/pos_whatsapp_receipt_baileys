@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="receipt_template" name="POS Receipt">
+        <t t-name="pos_whatsapp_receipt.receipt_template"/>
+    </template>
+</odoo>

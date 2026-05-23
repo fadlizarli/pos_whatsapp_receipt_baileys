@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-name="pos_whatsapp_receipt_baileys.ReceiptScreen" t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension" owl="1">
+        <xpath expr="//form[hasclass('send-email')]" position="after">
+            <div class="send-email d-flex mt-2">
+                <div class="input-email input-group">
+                    <input type="tel" class="form-control py-3 bg-view" placeholder="WhatsApp (628xxx)" t-model="orderUiState.waPhone"/>
+                    <button class="btn btn-success px-5" t-on-click="sendWhatsApp">
+                        <i class="fa fa-whatsapp" t-if="!orderUiState.waSending"/>
+                        <i class="fa fa-spinner fa-spin" t-if="orderUiState.waSending"/>
+                    </button>
+                </div>
+            </div>
+            <div t-if="orderUiState.waStatus" class="mt-1 ms-3 small" t-att-class="orderUiState.waSuccess ? 'text-success' : 'text-danger'">
+                <t t-esc="orderUiState.waStatus"/>
+            </div>
+        </xpath>
+    </t>
+</templates>

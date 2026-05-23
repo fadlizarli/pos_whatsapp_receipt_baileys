@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_whatsapp_baileys" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.whatsapp.baileys</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="WhatsApp Receipt" name="pos_whatsapp_receipt_baileys" logo="/pos_whatsapp_receipt_baileys/static/description/icon.png">
+                    <block title="Baileys WhatsApp Server" name="baileys_config">
+                        <setting string="Server URL" help="URL server Baileys, contoh: http://localhost:3000">
+                            <field name="baileys_url" placeholder="http://localhost:3000"/>
+                        </setting>
+                        <setting string="API Key" help="API key yang dikonfigurasi di Baileys server (.env)">
+                            <field name="baileys_api_key" password="True"/>
+                        </setting>
+                        <setting string="Template Pesan" help="Variabel: {total} {date} {receipt_url}">
+                            <field name="baileys_message_template" widget="text"/>
+                        </setting>
+                    </block>
+                    <block title="YOURLS URL Shortener (Opsional)" name="yourls_config">
+                        <setting string="YOURLS URL" help="URL server YOURLS, contoh: https://s.domain.com">
+                            <field name="yourls_url" placeholder="https://s.domain.com"/>
+                        </setting>
+                        <setting string="Signature Token" help="Signature token dari YOURLS (Tools > Secure passwordless API call)">
+                            <field name="yourls_signature" password="True"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>
