@@ -1,5 +1,8 @@
 import requests
 import logging
+import base64
+import io
+from PIL import Image
 from odoo import http
 from odoo.http import request, Response
 
@@ -50,11 +53,24 @@ class PosWhatsAppReceipt(http.Controller):
         if phone.startswith('0'):
             phone = '62' + phone[1:]
 
+        company = order.company_id
+        jpeg_thumbnail = ''
+        if company.logo:
+            try:
+                raw = base64.b64decode(company.logo)
+                img = Image.open(io.BytesIO(raw)).convert('RGB')
+                img.thumbnail((512, 512))
+                buf = io.BytesIO()
+                img.save(buf, format='JPEG', quality=85)
+                jpeg_thumbnail = base64.b64encode(buf.getvalue()).decode('utf-8')
+            except Exception:
+                pass
+
         try:
             response = requests.post(
                 f"{baileys_url.rstrip('/')}/send-message",
                 headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
-                json={'phone': phone, 'message': message},
+                json={'phone': phone, 'message': message, 'jpeg_thumbnail': jpeg_thumbnail},
                 timeout=20
             )
             if response.status_code in (200, 201):

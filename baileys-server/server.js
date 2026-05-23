@@ -123,7 +123,7 @@ app.post('/send-message', authMiddleware, async (req, res) => {
         return res.status(503).json({ error: 'WhatsApp belum terhubung. Scan QR terlebih dahulu di GET /qr' });
     }
 
-    const { phone, message } = req.body;
+    const { phone, message, jpeg_thumbnail } = req.body;
     if (!phone || !message) {
         return res.status(400).json({ error: 'Field phone dan message wajib diisi' });
     }
@@ -131,7 +131,11 @@ app.post('/send-message', authMiddleware, async (req, res) => {
     const jid = formatPhone(phone);
 
     try {
-        await sock.sendMessage(jid, { text: message });
+        const msgPayload = jpeg_thumbnail
+            ? { image: Buffer.from(jpeg_thumbnail, 'base64'), caption: message }
+            : { text: message };
+
+        await sock.sendMessage(jid, msgPayload);
         res.json({ success: true });
     } catch (err) {
         console.error('Gagal kirim pesan:', err.message);
