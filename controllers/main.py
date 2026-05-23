@@ -50,11 +50,30 @@ class PosWhatsAppReceipt(http.Controller):
         if phone.startswith('0'):
             phone = '62' + phone[1:]
 
+        company = order.company_id
+        items_preview = ', '.join(
+            f"{line.product_id.name} x{int(line.qty)}"
+            for line in order.lines[:3]
+        )
+        if len(order.lines) > 3:
+            items_preview += f", +{len(order.lines) - 3} item lainnya"
+
+        logo_b64 = ''
+        if company.logo:
+            logo_b64 = company.logo.decode('utf-8') if isinstance(company.logo, bytes) else company.logo
+
+        preview = {
+            'title': f"Struk Pembayaran - {company.name}",
+            'description': f"Total: Rp {order.amount_total:,.0f} | {items_preview}",
+            'url': receipt_url,
+            'logo_b64': logo_b64,
+        }
+
         try:
             response = requests.post(
                 f"{baileys_url.rstrip('/')}/send-message",
                 headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
-                json={'phone': phone, 'message': message},
+                json={'phone': phone, 'message': message, 'preview': preview},
                 timeout=15
             )
             if response.status_code in (200, 201):

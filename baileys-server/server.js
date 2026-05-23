@@ -5,7 +5,6 @@ const {
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
-    getUrlInfo,
 } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const express = require('express');
@@ -124,7 +123,7 @@ app.post('/send-message', authMiddleware, async (req, res) => {
         return res.status(503).json({ error: 'WhatsApp belum terhubung. Scan QR terlebih dahulu di GET /qr' });
     }
 
-    const { phone, message } = req.body;
+    const { phone, message, preview } = req.body;
     if (!phone || !message) {
         return res.status(400).json({ error: 'Field phone dan message wajib diisi' });
     }
@@ -134,19 +133,21 @@ app.post('/send-message', authMiddleware, async (req, res) => {
     try {
         let msgPayload = { text: message };
 
-        const urlMatch = message.match(/https?:\/\/[^\s]+/);
-        if (urlMatch) {
-            try {
-                const urlInfo = await getUrlInfo(urlMatch[0], {
-                    thumbnailWidth: 300,
-                    fetchOpts: { timeout: 5000 },
-                });
-                if (urlInfo) {
-                    msgPayload = { text: message, ...urlInfo };
-                }
-            } catch (previewErr) {
-                console.warn('Link preview gagal, kirim tanpa preview:', previewErr.message);
+        if (preview) {
+            const adReply = {
+                title: preview.title,
+                body: preview.description,
+                sourceUrl: preview.url,
+                mediaType: 1,
+                renderLargerThumbnail: true,
+            };
+            if (preview.logo_b64) {
+                adReply.thumbnail = Buffer.from(preview.logo_b64, 'base64');
             }
+            msgPayload = {
+                text: message,
+                contextInfo: { externalAdReply: adReply },
+            };
         }
 
         await sock.sendMessage(jid, msgPayload);
