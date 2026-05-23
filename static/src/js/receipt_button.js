@@ -1,76 +1,48 @@
-/** @odoo-module */
-
-import { Component, useState, useRef, onMounted } from "@odoo/owl";
-import { Dialog } from "@web/core/dialog/dialog";
-import { ReceiptScreen } from "@point_of_sale/app/screens/receipt_screen/receipt_screen";
+/** @odoo-module **/
 import { patch } from "@web/core/utils/patch";
-import { useService } from "@web/core/utils/hooks";
+import { ReceiptScreen } from "@point_of_sale/app/screens/receipt_screen/receipt_screen";
+import { jsonrpc } from "@web/core/network/rpc_service";
 import { _t } from "@web/core/l10n/translation";
-
-class WhatsAppDialog extends Component {
-    static components = { Dialog };
-    static template = "pos_whatsapp_receipt_baileys.WhatsAppDialog";
-    static props = {
-        title: { type: String, optional: true },
-        phone: { type: String, optional: true },
-        close: Function,
-    };
-
-    setup() {
-        this.state = useState({ phone: this.props.phone || "" });
-        this.phoneInput = useRef("phoneInput");
-        onMounted(() => this.phoneInput.el?.focus());
-    }
-
-    onConfirm() {
-        this.props.close(this.state.phone.trim());
-    }
-
-    onCancel() {
-        this.props.close(null);
-    }
-}
 
 patch(ReceiptScreen.prototype, {
     setup() {
         super.setup();
-        this.dialog = useService("dialog");
-        this.orm = useService("orm");
-        this.notification = useService("notification");
-    },
-
-    async onClickSendWhatsApp() {
-        const order = this.currentOrder;
-        const partner = order.get_partner();
-        const defaultPhone = partner ? (partner.mobile || partner.phone || "") : "";
-
-        const phone = await new Promise((resolve) => {
-            this.dialog.add(WhatsAppDialog, {
-                title: _t("Kirim Struk via WhatsApp"),
-                phone: defaultPhone,
-                close: resolve,
-            });
-        });
-
-        if (!phone) return;
-
-        try {
-            const result = await this.orm.call(
-                "pos.order",
-                "send_whatsapp_receipt",
-                [],
-                { order_id: order.backendId, phone_number: phone }
-            );
-            if (result.success) {
-                this.notification.add(_t("Struk berhasil dikirim via WhatsApp!"), {
-                    type: "success",
-                    sticky: false,
-                });
-            } else {
-                this.notification.add(_t("Gagal kirim: ") + result.error, { type: "danger" });
-            }
-        } catch (e) {
-            this.notification.add(_t("Error: ") + e.message, { type: "danger" });
+        const partner = this.currentOrder.get_partner();
+        if (!this.orderUiState.waPhone && partner?.mobile) {
+            this.orderUiState.waPhone = partner.mobile;
+        } else if (!this.orderUiState.waPhone && partner?.phone) {
+            this.orderUiState.waPhone = partner.phone;
         }
     },
+
+    async sendWhatsApp() {
+        const phone = this.orderUiState.waPhone;
+        if (!phone) {
+            this.orderUiState.waStatus = _t('Masukkan nomor WhatsApp');
+            this.orderUiState.waSuccess = false;
+            return;
+        }
+
+        this.orderUiState.waSending = true;
+        this.orderUiState.waStatus = '';
+
+        try {
+            const result = await jsonrpc('/pos/send_whatsapp_receipt', {
+                order_id: this.currentOrder.server_id,
+                phone_number: phone,
+            });
+            if (result.success) {
+                this.orderUiState.waStatus = _t('✓ Struk berhasil dikirim via WhatsApp!');
+                this.orderUiState.waSuccess = true;
+            } else {
+                this.orderUiState.waStatus = _t('✗ Gagal: ') + result.error;
+                this.orderUiState.waSuccess = false;
+            }
+        } catch (e) {
+            this.orderUiState.waStatus = _t('✗ Terjadi kesalahan');
+            this.orderUiState.waSuccess = false;
+        } finally {
+            this.orderUiState.waSending = false;
+        }
+    }
 });

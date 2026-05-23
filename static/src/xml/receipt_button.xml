@@ -1,35 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
-
-    <t t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension">
-        <xpath expr="//button[@t-on-click='onNextOrder']" position="before">
-            <button class="btn btn-success btn-lg w-100" t-on-click="onClickSendWhatsApp"
-                    style="background-color:#25D366; border-color:#25D366;">
-                <i class="fa fa-whatsapp me-2"/> Kirim via WhatsApp
-            </button>
+    <t t-name="pos_whatsapp_receipt_baileys.ReceiptScreen" t-inherit="point_of_sale.ReceiptScreen" t-inherit-mode="extension" owl="1">
+        <xpath expr="//form[hasclass('send-email')]" position="after">
+            <div class="send-email d-flex mt-2">
+                <div class="input-email input-group">
+                    <input type="tel" class="form-control py-3 bg-view" placeholder="WhatsApp (628xxx / 08xxx)" t-model="orderUiState.waPhone"/>
+                    <button class="btn btn-success px-5" t-on-click="sendWhatsApp" style="background-color:#25D366; border-color:#25D366;">
+                        <i class="fa fa-whatsapp" t-if="!orderUiState.waSending"/>
+                        <i class="fa fa-spinner fa-spin" t-if="orderUiState.waSending"/>
+                    </button>
+                </div>
+            </div>
+            <div t-if="orderUiState.waStatus" class="mt-1 ms-3 small" t-att-class="orderUiState.waSuccess ? 'text-success' : 'text-danger'">
+                <t t-esc="orderUiState.waStatus"/>
+            </div>
         </xpath>
     </t>
-
-    <t t-name="pos_whatsapp_receipt_baileys.WhatsAppDialog" owl="1">
-        <Dialog title="title">
-            <div class="p-4">
-                <p class="mb-2 fw-bold">Nomor WhatsApp pelanggan:</p>
-                <input
-                    t-ref="phoneInput"
-                    type="tel"
-                    class="form-control form-control-lg"
-                    t-model="state.phone"
-                    placeholder="08xxx atau 628xxx"
-                />
-            </div>
-            <t t-set-slot="footer">
-                <button class="btn btn-secondary me-2" t-on-click="onCancel">Batal</button>
-                <button class="btn btn-success" style="background-color:#25D366; border-color:#25D366;"
-                        t-on-click="onConfirm">
-                    <i class="fa fa-whatsapp me-2"/> Kirim
-                </button>
-            </t>
-        </Dialog>
-    </t>
-
 </templates>
