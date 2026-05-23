@@ -131,19 +131,15 @@ app.post('/send-message', authMiddleware, async (req, res) => {
     const jid = formatPhone(phone);
 
     try {
-        let msgPayload = { text: message };
+        let msgPayload;
 
-        if (preview && preview.url) {
+        if (preview && preview.jpeg_thumbnail) {
             msgPayload = {
-                text: message,
-                matchedText: preview.url,
-                canonicalUrl: preview.url,
-                title: preview.title || '',
-                description: preview.description || '',
+                image: Buffer.from(preview.jpeg_thumbnail, 'base64'),
+                caption: message,
             };
-            if (preview.jpeg_thumbnail) {
-                msgPayload.jpegThumbnail = Buffer.from(preview.jpeg_thumbnail, 'base64');
-            }
+        } else {
+            msgPayload = { text: message };
         }
 
         await sock.sendMessage(jid, msgPayload);
