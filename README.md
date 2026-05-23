@@ -74,11 +74,14 @@ cp .env.example .env
 nano .env
 ```
 
-Isi:
+Isi dengan nilai bebas — `API_KEY` adalah kunci rahasia yang **kamu tentukan sendiri**:
 ```
 PORT=3000
-API_KEY=ganti-dengan-api-key-rahasia-anda
+API_KEY=isi-string-acak-sesukamu
 ```
+
+> Nilai `API_KEY` ini yang nanti dimasukkan ke field **API Key** di Settings Odoo.
+> Gunakan string acak yang susah ditebak, contoh: `xK9mP2qL7vR4nW1j`
 
 ### 3. Install dependensi dan jalankan
 
@@ -129,7 +132,7 @@ Masuk ke **Settings → WhatsApp Receipt**:
 | Field | Keterangan | Contoh |
 |-------|-----------|--------|
 | **Server URL** | URL server Baileys | `http://localhost:3000` |
-| **API Key** | API key dari file `.env` Baileys | `rahasia-anda` |
+| **API Key** | Bebas ditentukan sendiri — harus sama persis dengan nilai `API_KEY` di file `baileys-server/.env` | `string-acak-rahasia` |
 | **Template Pesan** | Template dengan variabel `{total}`, `{date}`, `{receipt_url}` | Lihat contoh di bawah |
 
 ### YOURLS URL Shortener (Opsional)
