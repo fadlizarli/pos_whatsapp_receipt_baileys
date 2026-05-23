@@ -18,8 +18,8 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Tampilan struk lengkap: logo toko, kasir, item, metode pembayaran, kembalian
 - Link struk bisa dibuka tanpa login (public access)
 - **Responsive di mobile**
-- **WhatsApp Preview Card** — preview card dengan logo toko, judul struk, deskripsi (total + ringkasan item), dan link struk **langsung dari Odoo** tanpa perlu fetch URL di server Baileys
-- **Logo dikirim langsung via base64** — logo toko diambil dari company data Odoo dan dikirim ke Baileys sebagai base64, menjamin preview card selalu muncul dengan tampilan konsisten
+- **Logo + Teks dalam satu pesan** — logo toko diambil dari company data Odoo dan dikirim sebagai image WhatsApp dengan teks struk/link sebagai caption
+- **Konsisten di semua device** — tampilan sama di sender dan receiver, kompatibel dengan semua versi WhatsApp (Web, Mobile, Desktop)
 - Integrasi dengan Baileys server (self-hosted, gratis, open-source, tanpa Chromium)
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
@@ -181,15 +181,19 @@ sudo -u odoo psql -d NAMA_DATABASE -c \
 6. Pesan sukses/gagal ditampilkan di bawah input field
 7. Pelanggan menerima pesan WA dengan link struk lengkap yang dapat dibuka tanpa login
 
-### WhatsApp Preview Card
+### WhatsApp Logo + Teks Pesan
 
-Saat link struk dikirim via WhatsApp, akan menampilkan **preview card** yang berisi:
-- **Gambar/Thumbnail**: Logo toko (diambil dari Odoo company data)
-- **Judul**: "Struk Pembayaran - {Nama Toko}"
-- **Deskripsi**: Total transaksi + ringkasan item (max 3 item) + indikasi jika ada item lebih
-- **Link**: URL struk yang dapat dibuka tanpa login
+Saat struk dikirim via WhatsApp:
+- **Gambar**: Logo toko (diambil dari Odoo company data, dikirim sebagai image WhatsApp)
+- **Caption**: Teks pesan dengan informasi struk + link struk yang dapat dibuka tanpa login
 
-> **Catatan**: Logo diambil langsung dari Odoo dan dikirim sebagai base64, sehingga preview card **selalu muncul** dengan konsisten. Tidak perlu internet connection di server Baileys untuk fetch metadata. Pastikan company logo sudah diatur di Settings → Companies.
+**Keuntungan:**
+- Tampilan **konsisten di semua device** (Web, Mobile, Desktop)
+- Sama untuk **sender dan receiver** (tidak ada perbedaan tampilan)
+- **Tidak perlu parsing URL** atau fetch metadata tambahan
+- Logo **selalu muncul** tanpa ketergantungan internet di server
+
+> **Catatan**: Pastikan company logo sudah diatur di Odoo Settings → Companies. Jika tidak ada logo, hanya teks pesan yang dikirim (graceful fallback).
 
 ---
 
@@ -256,20 +260,18 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
   "phone": "628xxxxxxxxxx",
   "message": "Teks pesan dengan URL: https://domain.com/struk/123",
   "preview": {
-    "title": "Struk Pembayaran - Toko ABC",
-    "description": "Total: Rp 150.000 | Kopi x2, Snack x1",
-    "url": "https://domain.com/struk/123",
     "logo_b64": "data:image/png;base64,iVBORw0KGgoAAAANS..."
   }
 }
 ```
 
-**Fitur WhatsApp Preview Card:**
-Server akan menggunakan `externalAdReply` untuk menampilkan preview card:
-1. Menerima object `preview` dari Odoo yang berisi title, description, URL, dan logo (base64)
-2. Logo dikonversi dari base64 menjadi Buffer untuk ditampilkan sebagai thumbnail
-3. WhatsApp menampilkan preview card dengan logo, judul, deskripsi, dan link struk
-4. Jika `preview` tidak ada, pesan tetap terkirim sebagai plain text (graceful fallback)
+**Fitur Logo + Caption:**
+Server akan mengirim logo sebagai image WhatsApp dengan pesan sebagai caption:
+1. Menerima object `preview` dari Odoo yang berisi logo (base64)
+2. Logo dikonversi dari base64 menjadi Buffer dan dikirim sebagai image WhatsApp
+3. Teks pesan dikirim sebagai caption di bawah gambar
+4. Jika `preview.logo_b64` tidak ada, pesan tetap terkirim sebagai plain text (graceful fallback)
+5. Tampilan **konsisten di semua device** — sama untuk sender dan receiver
 
 ---
 
@@ -301,13 +303,18 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
+### v17.0.2.4.0
+- **Logo dikirim sebagai Image WhatsApp** — bukan preview card:
+  - Logo toko dikirim sebagai gambar WhatsApp dengan teks pesan sebagai caption
+  - Tampilan **konsisten di semua device** (Web, Mobile, Desktop)
+  - Sama untuk **sender dan receiver** — tidak ada perbedaan tampilan
+  - Tidak perlu parsing URL atau fetch metadata
+  - Graceful fallback: jika tidak ada logo, teks pesan tetap terkirim
+
 ### v17.0.2.3.0
-- **WhatsApp Preview Card dengan Logo dari Odoo** — kirim logo langsung via base64:
-  - Logo toko diambil dari company data Odoo dan dikirim ke Baileys sebagai base64
-  - Server Baileys menggunakan `externalAdReply` untuk render preview card dengan logo, judul, deskripsi, dan link
-  - Preview card **dijamin muncul** dengan tampilan konsisten tanpa perlu fetch URL di server
-  - Tidak ada lagi dependency pada `getUrlInfo()` yang kadang timeout/gagal di kondisi internet terbatas
-- Preview card struktur: title (Struk Pembayaran - Toko), description (Total + ringkasan item), thumbnail (logo), dan link struk
+- **WhatsApp Preview Card dengan Logo dari Odoo** (deprecated):
+  - Awalnya menggunakan `externalAdReply` untuk render preview card
+  - Diganti dengan image+caption di v17.0.2.4.0 karena lebih konsisten di semua device
 
 ### v17.0.2.2.0
 - **Automatic link preview extraction** menggunakan Baileys `getUrlInfo()`:
