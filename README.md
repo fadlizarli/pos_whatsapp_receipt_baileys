@@ -113,6 +113,8 @@ curl -s http://localhost:3000/status -H "x-api-key: API_KEY_ANDA"
 
 ### Menjalankan sebagai service (opsional)
 
+**Pilihan 1: Menggunakan PM2 (mudah, universal)**
+
 ```bash
 # Install pm2
 npm install -g pm2
@@ -124,6 +126,53 @@ pm2 start /opt/odoo/custom-addons/pos_whatsapp_receipt_baileys/baileys-server/se
 pm2 startup
 pm2 save
 ```
+
+**Pilihan 2: Menggunakan Systemd (native Linux, recommended untuk VPS)**
+
+Buat file service:
+```bash
+sudo nano /etc/systemd/system/baileys-wa.service
+```
+
+Isi file dengan:
+```ini
+[Unit]
+Description=Baileys WhatsApp Server
+After=network.target
+
+[Service]
+Type=simple
+User=odoo
+WorkingDirectory=/opt/odoo/custom-addons/pos_whatsapp_receipt_baileys/baileys-server
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Aktifkan dan jalankan:
+```bash
+# Reload systemd daemon
+sudo systemctl daemon-reload
+
+# Enable auto-start saat reboot
+sudo systemctl enable baileys-wa
+
+# Start service sekarang
+sudo systemctl start baileys-wa
+
+# Cek status
+sudo systemctl status baileys-wa
+
+# View logs real-time
+sudo journalctl -u baileys-wa -f
+```
+
+> **Keuntungan Systemd**: Auto-restart jika process crash, auto-start saat VPS reboot, logs terintegrasi dengan journalctl, tidak perlu npm global, standar sistem Linux.
 
 ---
 
@@ -225,11 +274,33 @@ Jika logout permanen (status `loggedOut`):
 # Hapus sesi lama
 rm -rf /path/to/baileys-server/auth_info
 
-# Restart server
+# Restart server (gunakan command sesuai pilihan service manager)
+# Jika menggunakan PM2:
 pm2 restart baileys-wa
+
+# Jika menggunakan Systemd:
+sudo systemctl restart baileys-wa
 ```
 
 Kemudian scan QR ulang.
+
+**Baileys server tidak jalan setelah VPS reboot**
+
+Jika Baileys dijalankan dengan `nohup` atau tanpa service manager, process akan mati saat VPS reboot. Solusi:
+
+1. **Gunakan Systemd service** (recommended) — lihat bagian "Menjalankan sebagai service" di atas
+2. **Atau gunakan PM2** dengan `pm2 startup` dan `pm2 save`
+
+Verifikasi:
+```bash
+# Jika menggunakan Systemd:
+sudo systemctl status baileys-wa
+
+# Jika menggunakan PM2:
+pm2 list
+```
+
+Keduanya akan memastikan Baileys **auto-start saat VPS reboot** dan **auto-restart jika process crash**.
 
 **Test kirim pesan manual:**
 ```bash
