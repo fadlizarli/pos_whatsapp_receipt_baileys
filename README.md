@@ -223,13 +223,15 @@ Jika muncul `{"success": true}` → berhasil.
 
 ## API Baileys Server
 
-| Endpoint | Method | Keterangan |
-|----------|--------|-----------|
-| `/status` | GET | Cek status koneksi WhatsApp |
-| `/qr` | GET | Tampilkan QR code (HTML) untuk scan |
-| `/send-message` | POST | Kirim pesan teks |
+| Endpoint | Method | Keterangan | Auth |
+|----------|--------|-----------|------|
+| `/status` | GET | Cek status koneksi WhatsApp | Required |
+| `/qr` | GET | Tampilkan QR code (HTML) untuk scan | **Tidak ada** |
+| `/send-message` | POST | Kirim pesan teks | Required |
 
-Semua endpoint membutuhkan header: `x-api-key: API_KEY_ANDA`
+Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
+
+**Catatan:** Endpoint `/qr` tidak memerlukan API key agar bisa dibuka langsung di browser tanpa perlu konfigurasi tambahan.
 
 **Body `/send-message`:**
 ```json
