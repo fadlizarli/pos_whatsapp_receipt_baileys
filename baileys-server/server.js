@@ -101,7 +101,7 @@ app.get('/status', authMiddleware, (req, res) => {
     });
 });
 
-app.get('/qr', authMiddleware, (req, res) => {
+app.get('/qr', (req, res) => {
     if (isConnected) {
         return res.json({ connected: true, message: 'Sudah terhubung' });
     }
