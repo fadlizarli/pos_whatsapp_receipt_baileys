@@ -19,6 +19,7 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Link struk bisa dibuka tanpa login (public access)
 - **Responsive di mobile**
 - **Open Graph (OG) meta tags** untuk preview WhatsApp — muncul preview card dengan logo toko, judul, dan ringkasan transaksi saat URL dibagikan
+- **Automatic link preview extraction** — Baileys server otomatis menggunakan `getUrlInfo()` untuk mengekstrak metadata (title, description, thumbnail) dari URL, sehingga preview card WhatsApp muncul tanpa perlu paste manual
 - Integrasi dengan Baileys server (self-hosted, gratis, open-source, tanpa Chromium)
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
@@ -252,9 +253,16 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 ```json
 {
   "phone": "628xxxxxxxxxx",
-  "message": "Teks pesan"
+  "message": "Teks pesan dengan URL: https://domain.com/struk/123"
 }
 ```
+
+**Fitur Link Preview:**
+Jika pesan mengandung URL (`https://...`), server akan:
+1. Mendeteksi URL menggunakan regex
+2. Memanggil `getUrlInfo()` dari Baileys untuk mengekstrak metadata (title, description, thumbnail)
+3. Spread metadata ke message payload sehingga WhatsApp menampilkan preview card
+4. Jika metadata fetch gagal (timeout, server error), pesan tetap terkirim sebagai plain text (graceful fallback)
 
 ---
 
@@ -285,6 +293,13 @@ pos_whatsapp_receipt_baileys/
 ---
 
 ## Changelog
+
+### v17.0.2.2.0
+- **Automatic link preview extraction** menggunakan Baileys `getUrlInfo()`:
+  - Saat pesan WhatsApp mengandung URL, Baileys server otomatis mengekstrak metadata (title, description, thumbnail)
+  - Preview card WhatsApp muncul tanpa perlu paste URL manual
+  - Fallback graceful jika server tidak bisa fetch metadata — pesan tetap terkirim tanpa preview
+- Timeout 5 detik untuk metadata fetch agar tidak mengganggu pengiriman pesan
 
 ### v17.0.2.1.0
 - **Open Graph (OG) meta tags** untuk preview WhatsApp:
