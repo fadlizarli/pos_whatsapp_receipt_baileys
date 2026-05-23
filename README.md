@@ -11,7 +11,10 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 ## Fitur
 
 - Kirim struk ke WhatsApp pelanggan setelah transaksi POS
-- Nomor WA customer **otomatis terisi** dari data kontak pelanggan
+- Input field WhatsApp inline di layar struk (bukan popup dialog)
+- Nomor WA customer **otomatis terisi** dari data kontak pelanggan (mobile → phone)
+- Tombol hijau WhatsApp di sebelah kanan input dengan spinner loading
+- Status message (sukses/gagal) ditampilkan inline di bawah input
 - Tampilan struk lengkap: logo toko, kasir, item, metode pembayaran, kembalian
 - Link struk bisa dibuka tanpa login (public access)
 - Responsive di mobile
@@ -168,11 +171,13 @@ sudo -u odoo psql -d NAMA_DATABASE -c \
 
 1. Buka POS dan lakukan transaksi seperti biasa
 2. Pilih customer yang sudah ada nomor HP-nya di kontak Odoo
-3. Setelah payment, klik tombol hijau **Kirim via WhatsApp** di layar struk
-4. Dialog akan muncul dengan nomor WA customer yang **otomatis terisi**
-5. Jika belum terisi, masukkan manual (format: `08xxx` atau `628xxx`)
-6. Klik **Kirim** — pelanggan menerima pesan WA dengan link struk lengkap
-7. Link struk dapat dibuka tanpa perlu login ke Odoo
+3. Setelah payment, layar struk menampilkan:
+   - Input field WhatsApp dengan nomor customer **otomatis terisi** dari kontak
+   - Tombol hijau WhatsApp di sebelah kanan input
+4. Jika nomor belum terisi, masukkan manual (format: `08xxx` atau `628xxx`)
+5. Klik tombol hijau — spinner akan muncul saat proses kirim
+6. Pesan sukses/gagal ditampilkan di bawah input field
+7. Pelanggan menerima pesan WA dengan link struk lengkap yang dapat dibuka tanpa login
 
 ---
 
@@ -258,8 +263,8 @@ pos_whatsapp_receipt_baileys/
 │   ├── res_config_settings.py
 │   └── short_url.py
 ├── static/src/
-│   ├── js/receipt_button.js   ← OWL patch ReceiptScreen + dialog input nomor
-│   └── xml/receipt_button.xml ← Template tombol WA + dialog
+│   ├── js/receipt_button.js   ← OWL patch ReceiptScreen: auto-fill nomor, handler kirim WA
+│   └── xml/receipt_button.xml ← Template: inline input WhatsApp + tombol hijau + status message
 ├── views/
 │   ├── res_config_settings_views.xml
 │   └── receipt_template.xml
@@ -270,6 +275,13 @@ pos_whatsapp_receipt_baileys/
 ---
 
 ## Changelog
+
+### v17.0.2.0.0
+- **UI Rewrite**: Input WhatsApp dan tombol hijau sekarang inline di bawah email input (bukan popup dialog)
+- Auto-fill nomor WA dari kontak customer (mobile → phone)
+- Spinner indicator saat proses pengiriman
+- Status message (success/error) ditampilkan inline di bawah input
+- Styling sejalan dengan implementasi OpenWA yang terbukti stabil
 
 ### v17.0.1.0.0
 - Initial release dengan Baileys (Node.js, tanpa Chromium)
