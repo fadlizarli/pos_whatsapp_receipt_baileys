@@ -18,10 +18,10 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Tampilan struk lengkap: logo toko, kasir, item, metode pembayaran, kembalian
 - Link struk bisa dibuka tanpa login (public access)
 - **Responsive di mobile**
-- **Automatic Link Preview Card** — Baileys otomatis extract metadata (title, description, thumbnail) dari link struk dan tampilkan sebagai preview card di WhatsApp (seperti paste URL manual)
-- **Preview Card dengan Logo Toko** — thumbnail preview menggunakan logo toko dari company data Odoo
+- **Manual Link Preview Card** — Odoo prepare metadata (title, description, logo thumbnail) dan Baileys build `extendedTextMessage` dengan field preview yang sama persis format saat paste URL manual di WhatsApp
+- **Preview Card dengan Logo Toko** — thumbnail preview otomatis di-resize ke JPEG 300px dari logo company data Odoo
 - **Konsisten di semua device** — tampilan preview sama di sender dan receiver, kompatibel dengan semua versi WhatsApp (Web, Mobile, Desktop)
-- **Timeout yang Akurat** — `getUrlInfo` memakai `timeoutMs` (bukan `fetchOpts.timeout`) untuk ekstrak metadata lebih reliable
+- **Reliable tanpa dependency eksternal** — tidak perlu fetch URL dari server, semua data sudah tersedia dari Odoo dan database
 - Integrasi dengan Baileys server (self-hosted, gratis, open-source, tanpa Chromium)
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
@@ -236,19 +236,20 @@ sudo -u odoo psql -d NAMA_DATABASE -c \
 
 Saat struk dikirim via WhatsApp:
 - **Teks Pesan**: Isi pesan dari template (total, tanggal, link struk)
-- **Preview Card**: Baileys otomatis extract metadata dari link struk:
-  - **Title** (og:title): "Struk Pembayaran - {nama toko}"
-  - **Description** (og:description): Total transaksi + ringkasan item
-  - **Thumbnail** (og:image): Logo toko dari company data Odoo
+- **Preview Card**: Manual build oleh Baileys dari data metadata yang disiapkan Odoo:
+  - **Title**: "Struk Pembayaran - {nama toko}"
+  - **Description**: Total transaksi + ringkasan item (max 3 item)
+  - **Thumbnail**: Logo toko yang sudah di-resize ke 300px JPEG dari company data Odoo
 
 **Keuntungan:**
-- Tampilan **seperti paste URL manual** — preview card muncul di bawah teks pesan
+- Tampilan **identik dengan paste URL manual** — preview card dengan format `extendedTextMessage` yang sama persis
 - **Konsisten di semua device** (Web, Mobile, Desktop)
 - Sama untuk **sender dan receiver** (tidak ada perbedaan tampilan)
-- **Reliable link preview** — menggunakan `getUrlInfo` dengan timeout yang akurat (`timeoutMs`)
-- Logo **otomatis muncul** sebagai thumbnail preview dari server Odoo
+- **Reliable** — tidak perlu fetch URL dari server, semua data disiapkan oleh Odoo
+- **Cepat** — logo sudah di-resize dan encode ke base64, tidak perlu processing di Baileys
+- Logo **otomatis muncul** sebagai thumbnail preview tanpa watermark/distortion
 
-> **Catatan**: Link struk harus accessible dari server Odoo (bukan localhost). Pastikan `web.base.url` sudah diatur dengan domain yang benar di Odoo settings.
+> **Catatan**: Link struk untuk preview card menggunakan `receipt_url` (bisa short URL dari YOURLS atau full URL long_url). Pastikan `web.base.url` sudah diatur dengan domain yang benar di Odoo settings.
 
 ---
 
@@ -336,20 +337,26 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 {
   "phone": "628xxxxxxxxxx",
   "message": "Terima kasih! Total: Rp 100.000. Lihat struk: https://domain.com/resit/lihat?access_token=...",
-  "receipt_url": "https://domain.com/resit/lihat?access_token=..."
+  "preview": {
+    "url": "https://domain.com/resit/lihat?access_token=...",
+    "title": "Struk Pembayaran - Nama Toko",
+    "description": "Total: Rp 100.000 | Barang 1 x2, Barang 2 x1",
+    "jpeg_thumbnail": "base64_encoded_jpeg_image"
+  }
 }
 ```
 
-**Fitur Automatic Link Preview:**
-Baileys server otomatis extract metadata dari link struk dan tampilkan sebagai preview card:
-1. Menerima `receipt_url` dari Odoo — URL full struk (bukan yang dipersingkat YOURLS)
-2. **Baileys `getUrlInfo`** dengan `timeoutMs: 8000` extract metadata dari HTML link:
-   - Title dari `og:title` meta tag
-   - Description dari `og:description` meta tag
-   - Thumbnail dari `og:image` meta tag
+**Fitur Manual Link Preview:**
+Odoo prepare metadata dari data struk dan Baileys build `extendedTextMessage` dengan preview card:
+1. Odoo kirim `preview` object ke Baileys dengan:
+   - `url`: URL struk lengkap
+   - `title`: "Struk Pembayaran - {nama toko}"
+   - `description`: Total transaksi + ringkasan item (max 3 item)
+   - `jpeg_thumbnail`: Logo toko yang sudah di-resize ke 300px JPEG (base64)
+2. **Baileys build `extendedTextMessage`** dengan field `matchedText`, `canonicalUrl`, `title`, `description`, `jpegThumbnail` — format yang sama persis saat paste URL manual di WhatsApp
 3. Preview card dimunculkan di bawah teks pesan (seperti paste URL manual di WhatsApp)
-4. **Graceful fallback**: Jika `getUrlInfo` timeout atau error, pesan tetap terkirim sebagai plain text
-5. Tampilan **konsisten di semua device** — preview muncul sama di Web, Mobile, Desktop
+4. Tampilan **konsisten di semua device** — preview muncul sama di Web, Mobile, Desktop
+5. **Tidak perlu fetch URL** — semua data sudah disiapkan oleh Odoo, lebih reliable saat VPS tidak bisa fetch dari luar
 
 ---
 
@@ -381,13 +388,21 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.2.6.0 (Current)
-- **Revert ke Automatic Link Preview dengan Fix `timeoutMs`**:
-  - Kembali menggunakan Baileys `getUrlInfo()` setelah image+caption approach
-  - **Fix timeout bug**: Baileys sebelumnya menginginkan opsi `timeoutMs` (bukan `fetchOpts.timeout`)
-  - Pass `receipt_url` (full URL, bukan yang dipersingkat) dari Odoo ke Baileys untuk metadata extraction yang lebih reliable
-  - Preview card muncul di bawah teks pesan **seperti paste URL manual** — konsisten di semua device
-  - **Graceful fallback**: Jika `getUrlInfo` timeout/error, pesan tetap terkirim sebagai plain text
+### v17.0.2.7.0 (Current)
+- **Manual Link Preview Build** (menggantikan `getUrlInfo`):
+  - **Fix** untuk VPS yang tidak bisa fetch URL dari luar (blocked by firewall/isolation)
+  - Odoo prepare semua metadata: title, description, logo thumbnail (resize ke 300px JPEG)
+  - Pass `preview` object ke Baileys dengan field: `url`, `title`, `description`, `jpeg_thumbnail`
+  - Baileys build `extendedTextMessage` dengan format yang **sama persis saat paste URL manual** di WhatsApp
+  - Preview card muncul di bawah teks pesan — konsisten di semua device, sama untuk sender dan receiver
+  - **Lebih cepat & reliable** — tidak perlu fetch/parse HTML, tidak tergantung network ke luar VPS
+  - Logo **di-resize dan encode** ke base64 oleh Odoo sebelum kirim ke Baileys
+
+### v17.0.2.6.0
+- **Revert ke Automatic Link Preview dengan Fix `timeoutMs`** (deprecated di v17.0.2.7.0):
+  - Menggunakan Baileys `getUrlInfo()` dengan opsi `timeoutMs` (bukan `fetchOpts.timeout`)
+  - Pass `receipt_url` dari Odoo ke Baileys untuk metadata extraction
+  - Graceful fallback jika `getUrlInfo` timeout/error
 
 ### v17.0.2.5.0
 - **Logo otomatis di-resize ke JPEG 512px sebelum kirim** (deprecated di v17.0.2.6.0):
