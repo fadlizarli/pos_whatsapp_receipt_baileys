@@ -18,8 +18,8 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Tampilan struk lengkap: logo toko, kasir, item, metode pembayaran, kembalian
 - Link struk bisa dibuka tanpa login (public access)
 - **Responsive di mobile**
-- **Open Graph (OG) meta tags** untuk preview WhatsApp — muncul preview card dengan logo toko, judul, dan ringkasan transaksi saat URL dibagikan
-- **Automatic link preview extraction** — Baileys server otomatis menggunakan `getUrlInfo()` untuk mengekstrak metadata (title, description, thumbnail) dari URL, sehingga preview card WhatsApp muncul tanpa perlu paste manual
+- **WhatsApp Preview Card** — preview card dengan logo toko, judul struk, deskripsi (total + ringkasan item), dan link struk **langsung dari Odoo** tanpa perlu fetch URL di server Baileys
+- **Logo dikirim langsung via base64** — logo toko diambil dari company data Odoo dan dikirim ke Baileys sebagai base64, menjamin preview card selalu muncul dengan tampilan konsisten
 - Integrasi dengan Baileys server (self-hosted, gratis, open-source, tanpa Chromium)
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
@@ -183,12 +183,13 @@ sudo -u odoo psql -d NAMA_DATABASE -c \
 
 ### WhatsApp Preview Card
 
-Saat link struk dibagikan ke WhatsApp, akan menampilkan **preview card** yang berisi:
-- **Gambar**: Logo toko
+Saat link struk dikirim via WhatsApp, akan menampilkan **preview card** yang berisi:
+- **Gambar/Thumbnail**: Logo toko (diambil dari Odoo company data)
 - **Judul**: "Struk Pembayaran - {Nama Toko}"
-- **Deskripsi**: Total transaksi + ringkasan item (max 3 item)
+- **Deskripsi**: Total transaksi + ringkasan item (max 3 item) + indikasi jika ada item lebih
+- **Link**: URL struk yang dapat dibuka tanpa login
 
-> **Catatan**: Preview card otomatis muncul jika URL dapat diakses publik dari internet (bukan localhost). Pastikan domain sudah live dan dikonfigurasi di `web.base.url` Odoo untuk hasil optimal.
+> **Catatan**: Logo diambil langsung dari Odoo dan dikirim sebagai base64, sehingga preview card **selalu muncul** dengan konsisten. Tidak perlu internet connection di server Baileys untuk fetch metadata. Pastikan company logo sudah diatur di Settings → Companies.
 
 ---
 
@@ -253,16 +254,22 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 ```json
 {
   "phone": "628xxxxxxxxxx",
-  "message": "Teks pesan dengan URL: https://domain.com/struk/123"
+  "message": "Teks pesan dengan URL: https://domain.com/struk/123",
+  "preview": {
+    "title": "Struk Pembayaran - Toko ABC",
+    "description": "Total: Rp 150.000 | Kopi x2, Snack x1",
+    "url": "https://domain.com/struk/123",
+    "logo_b64": "data:image/png;base64,iVBORw0KGgoAAAANS..."
+  }
 }
 ```
 
-**Fitur Link Preview:**
-Jika pesan mengandung URL (`https://...`), server akan:
-1. Mendeteksi URL menggunakan regex
-2. Memanggil `getUrlInfo()` dari Baileys untuk mengekstrak metadata (title, description, thumbnail)
-3. Spread metadata ke message payload sehingga WhatsApp menampilkan preview card
-4. Jika metadata fetch gagal (timeout, server error), pesan tetap terkirim sebagai plain text (graceful fallback)
+**Fitur WhatsApp Preview Card:**
+Server akan menggunakan `externalAdReply` untuk menampilkan preview card:
+1. Menerima object `preview` dari Odoo yang berisi title, description, URL, dan logo (base64)
+2. Logo dikonversi dari base64 menjadi Buffer untuk ditampilkan sebagai thumbnail
+3. WhatsApp menampilkan preview card dengan logo, judul, deskripsi, dan link struk
+4. Jika `preview` tidak ada, pesan tetap terkirim sebagai plain text (graceful fallback)
 
 ---
 
@@ -293,6 +300,14 @@ pos_whatsapp_receipt_baileys/
 ---
 
 ## Changelog
+
+### v17.0.2.3.0
+- **WhatsApp Preview Card dengan Logo dari Odoo** — kirim logo langsung via base64:
+  - Logo toko diambil dari company data Odoo dan dikirim ke Baileys sebagai base64
+  - Server Baileys menggunakan `externalAdReply` untuk render preview card dengan logo, judul, deskripsi, dan link
+  - Preview card **dijamin muncul** dengan tampilan konsisten tanpa perlu fetch URL di server
+  - Tidak ada lagi dependency pada `getUrlInfo()` yang kadang timeout/gagal di kondisi internet terbatas
+- Preview card struktur: title (Struk Pembayaran - Toko), description (Total + ringkasan item), thumbnail (logo), dan link struk
 
 ### v17.0.2.2.0
 - **Automatic link preview extraction** menggunakan Baileys `getUrlInfo()`:
