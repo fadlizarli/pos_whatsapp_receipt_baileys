@@ -268,25 +268,11 @@ pos_whatsapp_receipt_baileys/
 ## Changelog
 
 ### v17.0.1.0.0
-- Migrasi dari OpenWA ke Baileys (tanpa Chromium, lebih ringan)
+- Initial release dengan Baileys (Node.js, tanpa Chromium)
 - Baileys server: REST API sederhana dengan endpoint `/send-message`, `/status`, `/qr`
-- Hapus field `Session ID` dari konfigurasi (tidak diperlukan di Baileys)
-- Rename semua config parameter dari `openwa_*` ke `baileys_*`
-- Tambah OWL component: tombol "Kirim via WhatsApp" di ReceiptScreen POS
+- Konfigurasi: Server URL + API Key
+- OWL component: tombol "Kirim via WhatsApp" di ReceiptScreen POS
 - Dialog input nomor HP dengan auto-fill dari kontak customer
-- Bersihkan sub-folder duplikat dari session sebelumnya
-
----
-
-## Perbedaan dengan Versi OpenWA
-
-| | Versi OpenWA | Versi Ini (Baileys) |
-|--|-------------|---------------------|
-| **Engine** | OpenWA (Chromium-based) | Baileys (Node.js, tanpa browser) |
-| **Resource** | Berat (~500MB RAM) | Ringan (~50MB RAM) |
-| **Setup** | Docker + dashboard web | `npm install && npm start` |
-| **Konfigurasi** | Base URL + API Key + Session ID | Server URL + API Key |
-| **Session** | UUID per sesi | Single connection |
 
 ---
 
