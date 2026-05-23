@@ -17,7 +17,8 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Status message (sukses/gagal) ditampilkan inline di bawah input
 - Tampilan struk lengkap: logo toko, kasir, item, metode pembayaran, kembalian
 - Link struk bisa dibuka tanpa login (public access)
-- Responsive di mobile
+- **Responsive di mobile**
+- **Open Graph (OG) meta tags** untuk preview WhatsApp — muncul preview card dengan logo toko, judul, dan ringkasan transaksi saat URL dibagikan
 - Integrasi dengan Baileys server (self-hosted, gratis, open-source, tanpa Chromium)
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
@@ -179,6 +180,15 @@ sudo -u odoo psql -d NAMA_DATABASE -c \
 6. Pesan sukses/gagal ditampilkan di bawah input field
 7. Pelanggan menerima pesan WA dengan link struk lengkap yang dapat dibuka tanpa login
 
+### WhatsApp Preview Card
+
+Saat link struk dibagikan ke WhatsApp, akan menampilkan **preview card** yang berisi:
+- **Gambar**: Logo toko
+- **Judul**: "Struk Pembayaran - {Nama Toko}"
+- **Deskripsi**: Total transaksi + ringkasan item (max 3 item)
+
+> **Catatan**: Preview card otomatis muncul jika URL dapat diakses publik dari internet (bukan localhost). Pastikan domain sudah live dan dikonfigurasi di `web.base.url` Odoo untuk hasil optimal.
+
 ---
 
 ## Troubleshooting
@@ -275,6 +285,14 @@ pos_whatsapp_receipt_baileys/
 ---
 
 ## Changelog
+
+### v17.0.2.1.0
+- **Open Graph (OG) meta tags** untuk preview WhatsApp:
+  - `og:title` → "Struk Pembayaran - {nama toko}"
+  - `og:description` → total transaksi + ringkasan item (max 3 item)
+  - `og:image` → logo toko dari company data
+  - Twitter card fallback untuk kompatibilitas
+- Saat URL struk dibagikan ke WhatsApp, akan menampilkan preview card dengan logo toko, judul struk, dan ringkasan transaksi
 
 ### v17.0.2.0.0
 - **UI Rewrite**: Input WhatsApp dan tombol hijau sekarang inline di bawah email input (bukan popup dialog)
