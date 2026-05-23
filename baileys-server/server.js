@@ -5,6 +5,7 @@ const {
     useMultiFileAuthState,
     DisconnectReason,
     fetchLatestBaileysVersion,
+    getUrlInfo,
 } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const express = require('express');
@@ -123,7 +124,7 @@ app.post('/send-message', authMiddleware, async (req, res) => {
         return res.status(503).json({ error: 'WhatsApp belum terhubung. Scan QR terlebih dahulu di GET /qr' });
     }
 
-    const { phone, message, preview } = req.body;
+    const { phone, message, receipt_url } = req.body;
     if (!phone || !message) {
         return res.status(400).json({ error: 'Field phone dan message wajib diisi' });
     }
@@ -131,15 +132,20 @@ app.post('/send-message', authMiddleware, async (req, res) => {
     const jid = formatPhone(phone);
 
     try {
-        let msgPayload;
+        let msgPayload = { text: message };
 
-        if (preview && preview.logo_b64) {
-            msgPayload = {
-                image: Buffer.from(preview.logo_b64, 'base64'),
-                caption: message,
-            };
-        } else {
-            msgPayload = { text: message };
+        if (receipt_url) {
+            try {
+                const urlInfo = await getUrlInfo(receipt_url, {
+                    thumbnailWidth: 300,
+                    timeoutMs: 8000,
+                });
+                if (urlInfo) {
+                    msgPayload = { text: message, ...urlInfo };
+                }
+            } catch (e) {
+                console.warn('getUrlInfo gagal, kirim plain text:', e.message);
+            }
         }
 
         await sock.sendMessage(jid, msgPayload);

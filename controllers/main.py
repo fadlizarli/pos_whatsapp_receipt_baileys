@@ -1,8 +1,5 @@
 import requests
 import logging
-import base64
-import io
-from PIL import Image
 from odoo import http
 from odoo.http import request, Response
 
@@ -53,39 +50,12 @@ class PosWhatsAppReceipt(http.Controller):
         if phone.startswith('0'):
             phone = '62' + phone[1:]
 
-        company = order.company_id
-        items_preview = ', '.join(
-            f"{line.product_id.name} x{int(line.qty)}"
-            for line in order.lines[:3]
-        )
-        if len(order.lines) > 3:
-            items_preview += f", +{len(order.lines) - 3} item lainnya"
-
-        logo_b64 = ''
-        if company.logo:
-            try:
-                raw = base64.b64decode(company.logo)
-                img = Image.open(io.BytesIO(raw)).convert('RGB')
-                img.thumbnail((512, 512))
-                buf = io.BytesIO()
-                img.save(buf, format='JPEG', quality=85)
-                logo_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-            except Exception:
-                logo_b64 = ''
-
-        preview = {
-            'title': f"Struk Pembayaran - {company.name}",
-            'description': f"Total: Rp {order.amount_total:,.0f} | {items_preview}",
-            'url': receipt_url,
-            'logo_b64': logo_b64,
-        }
-
         try:
             response = requests.post(
                 f"{baileys_url.rstrip('/')}/send-message",
                 headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
-                json={'phone': phone, 'message': message, 'preview': preview},
-                timeout=15
+                json={'phone': phone, 'message': message, 'receipt_url': long_url},
+                timeout=20
             )
             if response.status_code in (200, 201):
                 return {'success': True}
