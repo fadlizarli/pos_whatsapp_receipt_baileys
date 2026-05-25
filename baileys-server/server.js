@@ -2,6 +2,7 @@ import 'dotenv/config';
 import makeWASocket, {
     useMultiFileAuthState,
     DisconnectReason,
+    getUrlInfo,
 } from 'baileys';
 import { Boom } from '@hapi/boom';
 import express from 'express';
@@ -118,7 +119,7 @@ app.post('/send-message', authMiddleware, async (req, res) => {
         return res.status(503).json({ error: 'WhatsApp belum terhubung. Scan QR terlebih dahulu di GET /qr' });
     }
 
-    const { phone, message } = req.body;
+    const { phone, message, receipt_url } = req.body;
     if (!phone || !message) {
         return res.status(400).json({ error: 'Field phone dan message wajib diisi' });
     }
@@ -126,7 +127,25 @@ app.post('/send-message', authMiddleware, async (req, res) => {
     const jid = formatPhone(phone);
 
     try {
-        await sock.sendMessage(jid, { text: message });
+        let msgPayload = { text: message };
+
+        if (receipt_url) {
+            try {
+                console.log('[preview] Fetching:', receipt_url);
+                const urlInfo = await getUrlInfo(receipt_url, {
+                    thumbnailWidth: 300,
+                    timeoutMs: 10000,
+                });
+                console.log('[preview] Result:', JSON.stringify(urlInfo));
+                if (urlInfo) {
+                    msgPayload = { text: message, ...urlInfo };
+                }
+            } catch (e) {
+                console.error('[preview] Error:', e.message);
+            }
+        }
+
+        await sock.sendMessage(jid, msgPayload);
         res.json({ success: true });
     } catch (err) {
         console.error('Gagal kirim pesan:', err.message);

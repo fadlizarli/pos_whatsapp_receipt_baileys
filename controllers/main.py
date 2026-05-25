@@ -50,7 +50,7 @@ class PosWhatsAppReceipt(http.Controller):
             response = requests.post(
                 f"{baileys_url.rstrip('/')}/send-message",
                 headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
-                json={'phone': phone, 'message': message},
+                json={'phone': phone, 'message': message, 'receipt_url': receipt_url},
                 timeout=20
             )
             if response.status_code in (200, 201):
