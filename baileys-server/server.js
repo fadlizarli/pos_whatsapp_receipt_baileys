@@ -141,11 +141,20 @@ app.post('/send-message', authMiddleware, async (req, res) => {
                 console.log('[preview] title:', urlInfo?.title);
                 console.log('[preview] jpegThumbnail size:', urlInfo?.jpegThumbnail?.length ?? 0);
                 if (urlInfo) {
-                    // FIX: pass urlInfo as linkPreview field (WAUrlInfo with hyphenated keys).
-                    // Baileys reads message.linkPreview — top-level camelCase fields are silently ignored.
                     msgPayload = {
                         text: message,
-                        linkPreview: urlInfo,
+                        contextInfo: {
+                            externalAdReply: {
+                                title: urlInfo.title,
+                                body: urlInfo.description,
+                                jpegThumbnail: urlInfo.jpegThumbnail,
+                                mediaUrl: receipt_url,
+                                sourceUrl: receipt_url,
+                                mediaType: 1,
+                                showAdAttribution: false,
+                                renderLargerThumbnail: true,
+                            },
+                        },
                     };
                 }
             } catch (e) {
