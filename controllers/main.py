@@ -37,7 +37,7 @@ class PosWhatsAppReceipt(http.Controller):
             while ShortUrl.search([('code', '=', short_code)], limit=1):
                 short_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
             ShortUrl.create({'code': short_code, 'url': long_url})
-        receipt_url = f"{web_base_url}/r/{short_code}"
+        receipt_url = f"{web_base_url}/struk/{short_code}"
 
         message = template.format(
             total=f"Rp {order.amount_total:,.0f}",
@@ -79,7 +79,7 @@ class PosWhatsAppReceipt(http.Controller):
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
-    @http.route('/r/<string:code>', type='http', auth='public')
+    @http.route('/struk/<string:code>', type='http', auth='public')
     def short_receipt(self, code, **kwargs):
         record = request.env['pos.short.url'].sudo().search([('code', '=', code)], limit=1)
         if not record:
