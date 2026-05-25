@@ -46,11 +46,35 @@ class PosWhatsAppReceipt(http.Controller):
         if phone.startswith('0'):
             phone = '62' + phone[1:]
 
+        # Siapkan OG metadata langsung dari data order — hindari HTTP fetch di Baileys
+        # yang bisa 404 karena short URL belum committed saat Baileys request
+        company = order.company_id
+        og_title = f"Struk Pembayaran - {company.name}"
+        items_preview = ', '.join(
+            f"{line.product_id.name} x{int(line.qty)}"
+            for line in order.lines[:3]
+        )
+        if len(order.lines) > 3:
+            items_preview += f", +{len(order.lines) - 3} item lainnya"
+        og_description = f"Total: Rp {order.amount_total:,.0f} | {items_preview}"
+
+        og_image_b64 = ''
+        if company.logo:
+            logo_data = company.logo
+            og_image_b64 = logo_data.decode('utf-8') if isinstance(logo_data, bytes) else str(logo_data)
+
         try:
             response = requests.post(
                 f"{baileys_url.rstrip('/')}/send-message",
                 headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
-                json={'phone': phone, 'message': message, 'receipt_url': receipt_url},
+                json={
+                    'phone': phone,
+                    'message': message,
+                    'receipt_url': receipt_url,
+                    'og_title': og_title,
+                    'og_description': og_description,
+                    'og_image_b64': og_image_b64,
+                },
                 timeout=20
             )
             if response.status_code in (200, 201):
