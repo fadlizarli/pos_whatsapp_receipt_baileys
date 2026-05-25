@@ -361,9 +361,17 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 ```json
 {
   "phone": "628xxxxxxxxxx",
-  "message": "Terima kasih! Total: Rp 100.000. Lihat struk: https://domain.com/struk/VP69O8A"
+  "message": "Terima kasih! Total: Rp 100.000. Lihat struk: https://domain.com/struk/VP69O8A",
+  "receipt_url": "https://domain.com/struk/VP69O8A"
 }
 ```
+
+**Parameter `/send-message`:**
+| Parameter | Tipe | Required | Keterangan |
+|-----------|------|----------|-----------|
+| `phone` | String | Ya | Nomor WhatsApp (format: `628xxxxxxxxxx` atau `08xxxxxxxxxx`) |
+| `message` | String | Ya | Pesan teks yang akan dikirim |
+| `receipt_url` | String | Tidak | URL struk untuk auto-extract metadata (OG tags, title, description, image) untuk preview card |
 
 **Fitur OG Tags Preview dengan Auto-Detection:**
 1. Odoo prepare `message` dari template dengan URL struk (short code `/struk/XXXXXXX`)
@@ -413,6 +421,8 @@ pos_whatsapp_receipt_baileys/
   - Added config: `generateHighQualityLinkPreview: true` di Baileys socket initialization
   - Baileys otomatis detect URL di pesan dan generate high-quality link preview menggunakan `link-preview-js`
   - Preview card auto-generated dari OG tags tanpa perlu manual extraction di Odoo
+  - **Bug fix**: Map field names dari hyphen (`canonical-url`, `matched-text`) ke camelCase (`canonicalUrl`, `matchedText`) agar Baileys recognize preview fields
+  - Odoo now pass `receipt_url` ke Baileys API untuk URL metadata extraction
   - **Keuntungan**: seamless integration, preview card generated langsung oleh Baileys sebelum kirim ke WhatsApp
 
 ### v17.0.1.0.2
