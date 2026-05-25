@@ -50,6 +50,7 @@ async function connectToWhatsApp() {
         logger,
         printQRInTerminal: true,
         browser: ['Baileys Server', 'Chrome', '10.0'],
+        generateHighQualityLinkPreview: true,
     });
 
     sock.ev.on('connection.update', async (update) => {
