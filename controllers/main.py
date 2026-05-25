@@ -27,21 +27,17 @@ class PosWhatsAppReceipt(http.Controller):
         web_base_url = params.get_param('web.base.url')
         long_url = f"{web_base_url}/resit/lihat?access_token={order.access_token}"
 
-        yourls_url = params.get_param('pos_whatsapp_receipt_baileys.yourls_url')
-        yourls_signature = params.get_param('pos_whatsapp_receipt_baileys.yourls_signature')
-        receipt_url = long_url
-        if yourls_url and yourls_signature:
-            try:
-                r = requests.post(
-                    f"{yourls_url.rstrip('/')}/yourls-api.php",
-                    data={'signature': yourls_signature, 'action': 'shorturl', 'url': long_url, 'format': 'json'},
-                    timeout=5
-                )
-                data = r.json()
-                if data.get('status') == 'success' and data.get('shorturl'):
-                    receipt_url = data['shorturl']
-            except Exception as e:
-                _logger.warning("YOURLS shortening failed: %s", str(e))
+        ShortUrl = request.env['pos.short.url'].sudo()
+        existing = ShortUrl.search([('url', '=', long_url)], limit=1)
+        if existing:
+            short_code = existing.code
+        else:
+            import random, string
+            short_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
+            while ShortUrl.search([('code', '=', short_code)], limit=1):
+                short_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=7))
+            ShortUrl.create({'code': short_code, 'url': long_url})
+        receipt_url = f"{web_base_url}/r/{short_code}"
 
         message = template.format(
             total=f"Rp {order.amount_total:,.0f}",
@@ -82,6 +78,13 @@ class PosWhatsAppReceipt(http.Controller):
                 return {'success': False, 'error': error_msg}
         except Exception as e:
             return {'success': False, 'error': str(e)}
+
+    @http.route('/r/<string:code>', type='http', auth='public')
+    def short_receipt(self, code, **kwargs):
+        record = request.env['pos.short.url'].sudo().search([('code', '=', code)], limit=1)
+        if not record:
+            return request.not_found()
+        return request.redirect(record.url)
 
     @http.route('/resit/lihat', type='http', auth='public')
     def view_receipt(self, access_token=None, **kwargs):

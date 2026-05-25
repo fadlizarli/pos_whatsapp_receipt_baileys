@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_pos_short_url,pos.short.url access,model_pos_short_url,,1,1,1,1
