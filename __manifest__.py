@@ -1,6 +1,6 @@
 {
     'name': 'POS WhatsApp Receipt (Baileys)',
-    'version': '17.0.1.0.2',
+    'version': '17.0.1.0.3',
     'category': 'Point of Sale',
     'summary': 'Kirim struk POS via WhatsApp menggunakan Baileys (tanpa Chromium)',
     'description': 'Kirim struk POS via WhatsApp menggunakan Baileys server (Node.js, tanpa Chromium). Tombol kirim WA muncul di layar struk setelah pembayaran.',
