@@ -119,7 +119,7 @@ app.post('/send-message', authMiddleware, async (req, res) => {
         return res.status(503).json({ error: 'WhatsApp belum terhubung. Scan QR terlebih dahulu di GET /qr' });
     }
 
-    const { phone, message, receipt_url, logo_url } = req.body;
+    const { phone, message, receipt_url } = req.body;
     if (!phone || !message) {
         return res.status(400).json({ error: 'Field phone dan message wajib diisi' });
     }
@@ -129,15 +129,7 @@ app.post('/send-message', authMiddleware, async (req, res) => {
     try {
         let msgPayload = { text: message };
 
-        if (logo_url) {
-            // Kirim sebagai image message — thumbnail besar, upload ke WA CDN
-            console.log('[image] Sending with logo:', logo_url);
-            msgPayload = {
-                image: { url: logo_url },
-                caption: message,
-            };
-        } else if (receipt_url) {
-            // Fallback: compact link preview card
+        if (receipt_url) {
             try {
                 console.log('[preview] Fetching:', receipt_url);
                 const urlInfo = await getUrlInfo(receipt_url, {

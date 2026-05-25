@@ -46,14 +46,11 @@ class PosWhatsAppReceipt(http.Controller):
         if phone.startswith('0'):
             phone = '62' + phone[1:]
 
-        company = order.company_id
-        logo_url = f"{web_base_url}/web/image/res.company/{company.id}/logo"
-
         try:
             response = requests.post(
                 f"{baileys_url.rstrip('/')}/send-message",
                 headers={'x-api-key': api_key, 'Content-Type': 'application/json'},
-                json={'phone': phone, 'message': message, 'receipt_url': receipt_url, 'logo_url': logo_url},
+                json={'phone': phone, 'message': message, 'receipt_url': receipt_url},
                 timeout=20
             )
             if response.status_code in (200, 201):
