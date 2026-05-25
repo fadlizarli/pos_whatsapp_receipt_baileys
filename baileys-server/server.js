@@ -25,7 +25,7 @@ let qrDataUrl = null;
 let isConnected = false;
 let isConnecting = false;
 
-const logger = pino({ level: 'silent' });
+const logger = pino({ level: 'warn' });
 
 function authMiddleware(req, res, next) {
     if (req.headers['x-api-key'] !== API_KEY) {
@@ -136,15 +136,16 @@ app.post('/send-message', authMiddleware, async (req, res) => {
                     thumbnailWidth: 300,
                     timeoutMs: 10000,
                 });
+                console.log('[preview] canonical-url:', urlInfo?.['canonical-url']);
+                console.log('[preview] matched-text:', urlInfo?.['matched-text']);
                 console.log('[preview] title:', urlInfo?.title);
+                console.log('[preview] jpegThumbnail size:', urlInfo?.jpegThumbnail?.length ?? 0);
                 if (urlInfo) {
+                    // FIX: pass urlInfo as linkPreview field (WAUrlInfo with hyphenated keys).
+                    // Baileys reads message.linkPreview — top-level camelCase fields are silently ignored.
                     msgPayload = {
                         text: message,
-                        canonicalUrl: urlInfo['canonical-url'],
-                        matchedText: urlInfo['matched-text'],
-                        title: urlInfo.title,
-                        description: urlInfo.description,
-                        jpegThumbnail: urlInfo.jpegThumbnail,
+                        linkPreview: urlInfo,
                     };
                 }
             } catch (e) {
