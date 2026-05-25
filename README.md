@@ -375,10 +375,12 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 
 **Fitur OG Tags Preview dengan Auto-Detection:**
 1. Odoo prepare `message` dari template dengan URL struk (short code `/struk/XXXXXXX`)
-2. Baileys kirim pesan dengan tipe `textMessage` (plain text)
+2. Odoo kirim ke Baileys API dengan `receipt_url` parameter
 3. **Baileys auto-detect URL menggunakan `link-preview-js`** dan generate preview card dari OG tags
    - `generateHighQualityLinkPreview: true` — built-in di Baileys socket config
    - Preview card include: title (`og:title`), description (`og:description`), image (`og:image`)
+   - **Struktur penting**: Pass `linkPreview: urlInfo` (WAUrlInfo dengan hyphenated keys: `canonical-url`, `matched-text`, dll)
+   - Field top-level seperti `canonicalUrl`, `matchedText` **akan diabaikan** oleh Baileys
    - **Keuntungan**: Preview generated langsung oleh Baileys sebelum kirim, tidak perlu tunggu WhatsApp crawl
 4. WhatsApp menerima pesan dengan preview card yang sudah siap
 5. Tampilan **konsisten di semua device** — sama untuk Web, Mobile, Desktop, sender, receiver
@@ -416,14 +418,19 @@ pos_whatsapp_receipt_baileys/
 ## Changelog
 
 ### v17.0.1.0.3 (Current)
+- **CRITICAL FIX: `linkPreview` field structure (WAUrlInfo dengan hyphenated keys)**:
+  - **Root cause found**: Sebelumnya pass camelCase fields di top-level (`canonicalUrl`, `matchedText`, `title`, dll) — tapi Baileys **silently ignore** semua itu
+  - **Correct structure**: Pass `linkPreview: urlInfo` dimana `urlInfo` adalah WAUrlInfo object dengan **hyphenated keys** (`canonical-url`, `matched-text`, dll)
+  - Baileys membaca **hanya** `message.linkPreview` field, field top-level lain diabaikan
+  - Logger diubah dari `silent` ke `warn` agar error internal Baileys terlihat
+  - **Keuntungan**: Preview card sekarang muncul di receiver dengan sempurna, bukan hanya di sender saja
 - **Baileys Link Preview Auto-Detection dengan `link-preview-js`**:
   - Added dependency: `link-preview-js` v3 (ESM-compatible dengan Baileys v7)
   - Added config: `generateHighQualityLinkPreview: true` di Baileys socket initialization
   - Baileys otomatis detect URL di pesan dan generate high-quality link preview menggunakan `link-preview-js`
   - Preview card auto-generated dari OG tags tanpa perlu manual extraction di Odoo
-  - **Bug fix**: Map field names dari hyphen (`canonical-url`, `matched-text`) ke camelCase (`canonicalUrl`, `matchedText`) agar Baileys recognize preview fields
-  - Odoo now pass `receipt_url` ke Baileys API untuk URL metadata extraction
-  - **Keuntungan**: seamless integration, preview card generated langsung oleh Baileys sebelum kirim ke WhatsApp
+  - Odoo pass `receipt_url` ke Baileys API untuk URL metadata extraction
+  - **Seamless integration**: Preview card generated langsung oleh Baileys sebelum kirim ke WhatsApp
 
 ### v17.0.1.0.2
 - **Plain Text Message dengan OG Tags Preview** (ganti image+caption):
