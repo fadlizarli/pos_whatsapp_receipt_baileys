@@ -99,7 +99,7 @@ npm start
 
 > **Note**: Baileys v7 menggunakan ESM modules. Jika upgrade dari v6, auth session lama mungkin tidak kompatibel.
 > 
-> **Thumbnail Preview Configuration**: Server menggunakan `getUrlInfo()` native Baileys untuk extract metadata (title, description, thumbnail) dari URL struk. Timeout 10 detik untuk fetch metadata agar tidak mengganggu pengiriman pesan. Jika timeout, fallback otomatis ke plain text message.
+> **Link Preview Configuration**: Server menerima OG metadata langsung dari Odoo (`og_title`, `og_description`, `og_image_b64`) — tidak perlu HTTP fetch ke URL struk. Ini menghindari race condition dan 404 error saat short URL belum di-commit di database.
 
 ### 4. Scan QR WhatsApp
 
@@ -362,7 +362,10 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 {
   "phone": "628xxxxxxxxxx",
   "message": "Terima kasih! Total: Rp 100.000. Lihat struk: https://domain.com/struk/VP69O8A",
-  "receipt_url": "https://domain.com/struk/VP69O8A"
+  "receipt_url": "https://domain.com/struk/VP69O8A",
+  "og_title": "Struk Pembayaran - USAHA BARU",
+  "og_description": "Total: Rp 100.000 | Item 1 x1, Item 2 x2",
+  "og_image_b64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAA..."
 }
 ```
 
@@ -371,22 +374,30 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 |-----------|------|----------|-----------|
 | `phone` | String | Ya | Nomor WhatsApp (format: `628xxxxxxxxxx` atau `08xxxxxxxxxx`) |
 | `message` | String | Ya | Pesan teks yang akan dikirim |
-| `receipt_url` | String | Ya | URL struk untuk Baileys extract metadata (OG tags) dan generate link preview |
+| `receipt_url` | String | Ya | URL struk untuk WhatsApp link preview |
+| `og_title` | String | Tidak | OG title untuk link preview (contoh: "Struk Pembayaran - {nama toko}") |
+| `og_description` | String | Tidak | OG description untuk link preview (contoh: total + ringkasan item) |
+| `og_image_b64` | String | Tidak | OG image dalam format base64 (logo toko) untuk thumbnail link preview |
 
 **Fitur Link Preview dengan OG Tags:**
-1. Odoo prepare `message` dari template dengan URL struk (short code `/struk/XXXXXXX`)
-2. Odoo kirim ke Baileys API dengan parameter `receipt_url`
-3. **Baileys extract metadata dari URL** menggunakan `getUrlInfo()` (timeout 10 detik):
-   - Fetch halaman struk dan extract OG tags: `og:title`, `og:description`, `og:image`
-   - Parse metadata untuk link preview: title, description, thumbnail
-4. **Pesan dikirim sebagai plain text dengan linkPreview**:
+1. Odoo prepare OG metadata langsung dari data order (tidak perlu HTTP fetch):
+   - `og_title`: "Struk Pembayaran - {nama perusahaan}"
+   - `og_description`: "Total: Rp X | {ringkasan 3 item pertama}"
+   - `og_image_b64`: Logo perusahaan (decode dari binary field, encode ke base64)
+2. Odoo prepare `message` dari template dengan URL struk (short code `/struk/XXXXXXX`)
+3. Odoo kirim ke Baileys API dengan parameter: `message`, `receipt_url`, `og_title`, `og_description`, `og_image_b64`
+4. **Baileys build linkPreview dari metadata yang dikirim** (tidak perlu HTTP fetch):
+   - Metadata sudah siap di Odoo, Baileys langsung build WhatsApp linkPreview
+   - Menghindari race condition: short URL mungkin belum di-commit saat Baileys fetch
+   - Menghindari 404 error: tidak ada HTTP call ke URL yang mungkin belum ada
+5. **Pesan dikirim sebagai plain text dengan linkPreview**:
    - Text: Message dari template + URL struk
-   - LinkPreview: Compact card dengan logo (og:image), judul (og:title), deskripsi (og:description)
+   - LinkPreview: Compact card dengan logo, judul, deskripsi dari parameter
    - Tampilan **konsisten di sender dan receiver** karena menggunakan native WhatsApp linkPreview
-5. **Reliable** — sama seperti paste URL manual di WhatsApp, tidak tergantung image upload atau external dependencies
-6. **Graceful fallback**:
-   - Jika `getUrlInfo()` timeout (>10 detik) atau error, fallback ke plain text message saja
-   - Pesan tetap terkirim dalam semua kondisi tanpa link preview
+6. **Reliable dan cepat** — tidak ada HTTP dependency, tidak ada timeout, tidak ada 404 race condition
+7. **Graceful fallback**:
+   - Jika `og_title` tidak dikirim, fallback ke plain text message saja
+   - Pesan tetap terkirim dalam semua kondisi
 
 ---
 
@@ -418,15 +429,25 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.1.0.6 (Current - Rollback ke LinkPreview OG Tags)
+### v17.0.1.0.7 (Current - OG Metadata dari Odoo, Hapus HTTP Fetch)
+- **FIX: Race Condition HTTP Fetch → Metadata dari Odoo**:
+  - **Problem**: Baileys fetch metadata dari short URL menggunakan `getUrlInfo()` — tapi short URL belum di-commit saat fetch, jadi 404 error
+  - **Solution**: Odoo prepare OG metadata langsung dari data order, kirim ke Baileys via API parameter
+  - Removed: `getUrlInfo()` native Baileys (diganti manual metadata preparation di Odoo)
+  - Added: Parameter `og_title`, `og_description`, `og_image_b64` ke API `/send-message`
+  - Changed: Baileys server.js hanya build linkPreview dari parameter, tidak perlu HTTP fetch
+  - **Keuntungan**: Tidak ada race condition, tidak ada 404 error, lebih cepat (tidak ada HTTP timeout), lebih reliable
+  - Controllers/main.py: siapkan OG metadata dari order data (company name, item preview, logo)
+  - Server.js: build linkPreview dari `og_title`, `og_description`, `og_image_b64`
+  - **Graceful fallback**: Jika `og_title` tidak ada, fallback ke plain text message saja
+
+### v17.0.1.0.6 (Deprecated - LinkPreview dengan getUrlInfo HTTP Fetch)
 - **Rollback: Hapus Image Message, gunakan linkPreview dengan OG Tags**:
   - Image message di API `/send-message` tidak konsisten tampilan di receiver (WhatsApp crop/scale image)
-  - Rollback ke plain text message + linkPreview dengan OG tags (tested lebih reliable)
-  - Removed: Parameter `logo_url` dari API dan Odoo controller
-  - Simplified: Hanya kirim `phone`, `message`, `receipt_url`
+  - Rollback ke plain text message + linkPreview dengan OG tags
   - Baileys otomatis extract metadata dari `receipt_url` menggunakan `getUrlInfo()` dengan 10 detik timeout
-  - **Graceful fallback**: Jika metadata extract timeout/error, fallback ke plain text message saja
-  - **Keuntungan**: Plain text + OG tags lebih reliable, konsisten di semua platform, tidak tergantung image processing
+  - **Problem**: Race condition saat short URL belum di-commit
+  - **Deprecated**: Diganti dengan metadata dari Odoo di v17.0.1.0.7
 
 ### v17.0.1.0.5 (Deprecated - Image Message dengan Large Thumbnail)
 - **Experiment: Logo sebagai Image Message (ganti `externalAdReply`)**:
