@@ -25,7 +25,7 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
 - **Built-in URL shortener** — otomatis generate short code `/struk/XXXXXXX` per order, disimpan di database
-- **Automatic Link Preview dengan `link-preview-js`** — Baileys auto-detect URL dan generate preview card sebelum kirim ke WhatsApp
+- **Large Thumbnail Preview** — externalAdReply dengan `renderLargerThumbnail: true` untuk tampilan thumbnail besar di atas pesan
 
 ---
 
@@ -99,7 +99,7 @@ npm start
 
 > **Note**: Baileys v7 menggunakan ESM modules. Jika upgrade dari v6, auth session lama mungkin tidak kompatibel.
 > 
-> **Link Preview Configuration**: Server sudah include `link-preview-js` v3 dan `generateHighQualityLinkPreview: true` untuk auto-detect URL dan generate preview card di Baileys sebelum kirim ke WhatsApp.
+> **Thumbnail Preview Configuration**: Server menggunakan `getUrlInfo()` native Baileys untuk extract metadata (title, description, thumbnail) dari URL struk. Timeout 10 detik untuk fetch metadata agar tidak mengganggu pengiriman pesan. Jika timeout, fallback otomatis ke plain text message.
 
 ### 4. Scan QR WhatsApp
 
@@ -241,24 +241,28 @@ sudo -u odoo psql -d NAMA_DATABASE -c \
 6. Pesan sukses/gagal ditampilkan di bawah input field
 7. Pelanggan menerima pesan WA dengan link struk lengkap yang dapat dibuka tanpa login
 
-### WhatsApp Receipt dengan OG Tags Preview
+### WhatsApp Receipt dengan Large Thumbnail Preview
 
 Saat struk dikirim via WhatsApp:
-- **Plain Text Message**: Pesan dari template (total, tanggal, link struk) dikirim sebagai plain text message
-- **OG Tags**: URL struk di-crawl WhatsApp untuk extract metadata dari OG tags di halaman
-- **Preview Card**: WhatsApp otomatis generate preview card dengan:
-  - `og:title` — "Struk Pembayaran - {nama toko}"
-  - `og:description` — total transaksi + ringkasan item
-  - `og:image` — logo toko dari company data
+- **Text Message + External Ad Reply**: Pesan dari template dikirim dengan metadata preview menggunakan `externalAdReply`
+- **Large Thumbnail**: Menggunakan `renderLargerThumbnail: true` untuk tampilan thumbnail **besar di atas pesan** (seperti preview artikel/iklan bisnis)
+- **Auto-Generated Metadata**: Baileys otomatis extract metadata dari URL menggunakan `getUrlInfo()`:
+  - Title dari OG tags / `<title>` tag
+  - Description dari `og:description` / `<meta name="description">`
+  - Thumbnail JPEG dari `og:image` atau preview dari halaman
+- **Preview Card Include**: 
+  - `title` — "Struk Pembayaran - {nama toko}"
+  - `body` — total transaksi + ringkasan item
+  - `jpegThumbnail` — logo toko dalam format JPEG (auto-generated dari URL metadata)
 
 **Keuntungan:**
-- Tampilan **konsisten di semua device** (Web, Mobile, Desktop) — sama seperti paste URL manual
-- **Reliable** — plain text message, tidak ada dependency eksternal atau network timeout
-- **Graceful fallback** — jika WhatsApp tidak bisa crawl URL, teks pesan tetap terkirim saja
-- **Sederhana** — kirim plain text saja, WhatsApp handle preview generation
-- **Zero configuration** — tidak perlu setup image encoding/decoding di Baileys
+- **Tampilan menonjol** — thumbnail besar di atas (lebih eye-catching dibanding compact link preview)
+- **Konsisten di receiver** — externalAdReply langsung embedded di pesan, tidak tergantung WhatsApp crawl
+- **Graceful fallback** — jika metadata extraction gagal, pesan plain text tetap terkirim
+- **Self-hosted** — semua processing di Baileys server, tidak ada dependency eksternal
+- **10 detik timeout** — cukup untuk fetch metadata, jika gagal langsung fallback ke plain text
 
-> **Catatan**: Pastikan `web.base.url` sudah diatur dengan domain yang benar di Odoo settings agar WhatsApp bisa crawl URL. URL struk menggunakan short code `/struk/XXXXXXX` yang redirect ke `/resit/lihat?access_token=...` untuk akses publik tanpa login.
+> **Catatan**: Jika `externalAdReply` tidak muncul di receiver, kemungkinan WhatsApp server strip field tersebut. Fallback otomatis ke plain text message saja. URL struk menggunakan short code `/struk/XXXXXXX` yang redirect ke `/resit/lihat?access_token=...` untuk akses publik tanpa login.
 
 ---
 
@@ -373,19 +377,19 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 | `message` | String | Ya | Pesan teks yang akan dikirim |
 | `receipt_url` | String | Tidak | URL struk untuk auto-extract metadata (OG tags, title, description, image) untuk preview card |
 
-**Fitur OG Tags Preview dengan Auto-Detection:**
+**Fitur Large Thumbnail Preview dengan Auto-Detection:**
 1. Odoo prepare `message` dari template dengan URL struk (short code `/struk/XXXXXXX`)
 2. Odoo kirim ke Baileys API dengan `receipt_url` parameter
-3. **Baileys auto-detect URL menggunakan `link-preview-js`** dan generate preview card dari OG tags
-   - `generateHighQualityLinkPreview: true` — built-in di Baileys socket config
-   - Preview card include: title (`og:title`), description (`og:description`), image (`og:image`)
-   - **Struktur penting**: Pass `linkPreview: urlInfo` (WAUrlInfo dengan hyphenated keys: `canonical-url`, `matched-text`, dll)
-   - Field top-level seperti `canonicalUrl`, `matchedText` **akan diabaikan** oleh Baileys
-   - **Keuntungan**: Preview generated langsung oleh Baileys sebelum kirim, tidak perlu tunggu WhatsApp crawl
-4. WhatsApp menerima pesan dengan preview card yang sudah siap
-5. Tampilan **konsisten di semua device** — sama untuk Web, Mobile, Desktop, sender, receiver
-6. **Reliable** — `link-preview-js` v3 (ESM) fully compatible dengan Baileys v7, tidak ada browser/Chromium dependency
-7. **Graceful fallback** — jika preview extraction gagal, plain text message tetap terkirim
+3. **Baileys auto-extract metadata** menggunakan `getUrlInfo()` dari Baileys library:
+   - `getUrlInfo(receipt_url, { thumbnailWidth: 300, timeoutMs: 10000 })` extract metadata dari URL
+   - Result include: `title`, `description`, `jpegThumbnail`, `canonical-url`, `matched-text`
+   - **Struktur pesan**: Gunakan `externalAdReply` dengan `renderLargerThumbnail: true` untuk tampilan besar di atas
+   - Preview card dengan title, body (description), dan jpegThumbnail
+   - **Keuntungan**: Thumbnail besar more eye-catching dibanding compact link preview
+4. WhatsApp menerima pesan dengan externalAdReply yang sudah embedded
+5. Tampilan **large thumbnail di atas pesan** — eye-catching untuk receipt/business preview
+6. **Reliable** — `getUrlInfo()` built-in Baileys, tidak ada external dependency
+7. **Graceful fallback** — jika metadata extraction gagal (timeout/network), plain text message tetap terkirim dengan fallback msgPayload
 
 ---
 
@@ -417,7 +421,18 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.1.0.3 (Current)
+### v17.0.1.0.4 (Current - Testing externalAdReply)
+- **Experiment: Large Thumbnail Preview dengan `externalAdReply + renderLargerThumbnail`**:
+  - Ubah dari `linkPreview` (compact) ke `externalAdReply` dengan `renderLargerThumbnail: true`
+  - Ganti metadata extraction dari `link-preview-js` ke `getUrlInfo()` native Baileys
+  - `getUrlInfo()` extract title, description, jpegThumbnail dari URL dengan 10 detik timeout
+  - Thumbnail besar di atas pesan lebih eye-catching untuk receipt (seperti preview artikel/bisnis)
+  - **Graceful fallback**: Jika `getUrlInfo()` timeout/error, fallback ke plain text message saja
+  - **Testing**: Jika `externalAdReply` tidak muncul di receiver, rollback ke `linkPreview`
+  - Removed: `link-preview-js` dependency (sekarang gunakan native `getUrlInfo()`)
+  - Logger tetap `warn` untuk visibility error internal Baileys
+
+### v17.0.1.0.3 (Deprecated - linkPreview approach)
 - **CRITICAL FIX: `linkPreview` field structure (WAUrlInfo dengan hyphenated keys)**:
   - **Root cause found**: Sebelumnya pass camelCase fields di top-level (`canonicalUrl`, `matchedText`, `title`, dll) — tapi Baileys **silently ignore** semua itu
   - **Correct structure**: Pass `linkPreview: urlInfo` dimana `urlInfo` adalah WAUrlInfo object dengan **hyphenated keys** (`canonical-url`, `matched-text`, dll)
