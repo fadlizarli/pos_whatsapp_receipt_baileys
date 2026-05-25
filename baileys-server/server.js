@@ -25,7 +25,7 @@ let qrDataUrl = null;
 let isConnected = false;
 let isConnecting = false;
 
-const logger = pino({ level: 'warn' });
+const logger = pino({ level: 'silent' });
 
 function authMiddleware(req, res, next) {
     if (req.headers['x-api-key'] !== API_KEY) {
