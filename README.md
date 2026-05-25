@@ -25,6 +25,7 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
 - **Built-in URL shortener** — otomatis generate short code `/struk/XXXXXXX` per order, disimpan di database
+- **Automatic Link Preview dengan `link-preview-js`** — Baileys auto-detect URL dan generate preview card sebelum kirim ke WhatsApp
 
 ---
 
@@ -97,6 +98,8 @@ npm start
 ```
 
 > **Note**: Baileys v7 menggunakan ESM modules. Jika upgrade dari v6, auth session lama mungkin tidak kompatibel.
+> 
+> **Link Preview Configuration**: Server sudah include `link-preview-js` v3 dan `generateHighQualityLinkPreview: true` untuk auto-detect URL dan generate preview card di Baileys sebelum kirim ke WhatsApp.
 
 ### 4. Scan QR WhatsApp
 
@@ -362,17 +365,17 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 }
 ```
 
-**Fitur OG Tags Preview:**
+**Fitur OG Tags Preview dengan Auto-Detection:**
 1. Odoo prepare `message` dari template dengan URL struk (short code `/struk/XXXXXXX`)
 2. Baileys kirim pesan dengan tipe `textMessage` (plain text)
-3. WhatsApp menerima pesan dan otomatis crawl URL untuk extract OG tags
-4. WhatsApp generate preview card dengan:
-   - Title dari `og:title`
-   - Description dari `og:description`
-   - Image dari `og:image` (logo company)
-5. Tampilan **konsisten di semua device** — sama untuk Web, Mobile, Desktop, sender, receiver (seperti paste URL manual)
-6. **Reliable** — plain text message, tidak ada image encoding/decoding atau timeout dari metadata fetch
-7. **Graceful fallback** — jika WhatsApp tidak bisa crawl URL, teks pesan tetap terkirim tanpa preview
+3. **Baileys auto-detect URL menggunakan `link-preview-js`** dan generate preview card dari OG tags
+   - `generateHighQualityLinkPreview: true` — built-in di Baileys socket config
+   - Preview card include: title (`og:title`), description (`og:description`), image (`og:image`)
+   - **Keuntungan**: Preview generated langsung oleh Baileys sebelum kirim, tidak perlu tunggu WhatsApp crawl
+4. WhatsApp menerima pesan dengan preview card yang sudah siap
+5. Tampilan **konsisten di semua device** — sama untuk Web, Mobile, Desktop, sender, receiver
+6. **Reliable** — `link-preview-js` v3 (ESM) fully compatible dengan Baileys v7, tidak ada browser/Chromium dependency
+7. **Graceful fallback** — jika preview extraction gagal, plain text message tetap terkirim
 
 ---
 
@@ -404,7 +407,15 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.1.0.2 (Current)
+### v17.0.1.0.3 (Current)
+- **Baileys Link Preview Auto-Detection dengan `link-preview-js`**:
+  - Added dependency: `link-preview-js` v3 (ESM-compatible dengan Baileys v7)
+  - Added config: `generateHighQualityLinkPreview: true` di Baileys socket initialization
+  - Baileys otomatis detect URL di pesan dan generate high-quality link preview menggunakan `link-preview-js`
+  - Preview card auto-generated dari OG tags tanpa perlu manual extraction di Odoo
+  - **Keuntungan**: seamless integration, preview card generated langsung oleh Baileys sebelum kirim ke WhatsApp
+
+### v17.0.1.0.2
 - **Plain Text Message dengan OG Tags Preview** (ganti image+caption):
   - Sebelumnya kirim logo sebagai gambar WhatsApp dengan teks caption
   - Sekarang kirim plain text message saja, biarkan WhatsApp crawl OG tags untuk generate preview
