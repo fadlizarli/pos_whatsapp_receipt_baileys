@@ -400,7 +400,7 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.4.0.0 (Current)
+### v17.0.1.0.0 (Current)
 - **Built-in Short URL System** (ganti YOURLS):
   - Model `pos.short.url` menyimpan `code` → `url` mapping di database Odoo
   - Generate short code **7 karakter** (huruf besar + angka) otomatis per order
