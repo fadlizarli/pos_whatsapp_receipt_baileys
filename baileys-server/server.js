@@ -136,9 +136,16 @@ app.post('/send-message', authMiddleware, async (req, res) => {
                     thumbnailWidth: 300,
                     timeoutMs: 10000,
                 });
-                console.log('[preview] Result:', JSON.stringify(urlInfo));
+                console.log('[preview] title:', urlInfo?.title);
                 if (urlInfo) {
-                    msgPayload = { text: message, ...urlInfo };
+                    msgPayload = {
+                        text: message,
+                        canonicalUrl: urlInfo['canonical-url'],
+                        matchedText: urlInfo['matched-text'],
+                        title: urlInfo.title,
+                        description: urlInfo.description,
+                        jpegThumbnail: urlInfo.jpegThumbnail,
+                    };
                 }
             } catch (e) {
                 console.error('[preview] Error:', e.message);
