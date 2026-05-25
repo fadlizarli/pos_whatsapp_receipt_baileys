@@ -244,25 +244,22 @@ sudo -u odoo psql -d NAMA_DATABASE -c \
 ### WhatsApp Receipt dengan Large Thumbnail Preview
 
 Saat struk dikirim via WhatsApp:
-- **Text Message + External Ad Reply**: Pesan dari template dikirim dengan metadata preview menggunakan `externalAdReply`
-- **Large Thumbnail**: Menggunakan `renderLargerThumbnail: true` untuk tampilan thumbnail **besar di atas pesan** (seperti preview artikel/iklan bisnis)
-- **Auto-Generated Metadata**: Baileys otomatis extract metadata dari URL menggunakan `getUrlInfo()`:
-  - Title dari OG tags / `<title>` tag
-  - Description dari `og:description` / `<meta name="description">`
-  - Thumbnail JPEG dari `og:image` atau preview dari halaman
-- **Preview Card Include**: 
-  - `title` — "Struk Pembayaran - {nama toko}"
-  - `body` — total transaksi + ringkasan item
-  - `jpegThumbnail` — logo toko dalam format JPEG (auto-generated dari URL metadata)
+- **Image Message + Caption**: Logo toko dikirim sebagai gambar WhatsApp dengan teks pesan sebagai caption
+- **Large Thumbnail**: Logo di-upload ke WhatsApp CDN via Baileys dan ditampilkan **sebagai gambar penuh di atas pesan** (lebih eye-catching dibanding compact link preview)
+- **Logo Upload**: Baileys otomatis upload logo toko ke WhatsApp CDN menggunakan native WhatsApp protokol
+- **Message Structure**: 
+  - Gambar logo di atas (full-size thumbnail)
+  - Teks pesan dari template + URL struk sebagai caption di bawah
+- **Fallback**: Jika `logo_url` tidak tersedia, fallback otomatis ke compact `linkPreview` dengan OG tags
 
 **Keuntungan:**
-- **Tampilan menonjol** — thumbnail besar di atas (lebih eye-catching dibanding compact link preview)
-- **Konsisten di receiver** — externalAdReply langsung embedded di pesan, tidak tergantung WhatsApp crawl
-- **Graceful fallback** — jika metadata extraction gagal, pesan plain text tetap terkirim
+- **Tampilan menonjol** — logo gambar penuh di atas lebih eye-catching dibanding compact link preview
+- **Konsisten di receiver** — image message dengan caption langsung tertanam, bukan tergantung WhatsApp crawl atau `externalAdReply` stripping
+- **Reliable** — tidak tergantung metadata extraction dari URL, cukup upload logo ke CDN
+- **Graceful fallback** — jika logo_url gagal, fallback ke linkPreview dengan OG tags tetap terkirim
 - **Self-hosted** — semua processing di Baileys server, tidak ada dependency eksternal
-- **10 detik timeout** — cukup untuk fetch metadata, jika gagal langsung fallback ke plain text
 
-> **Catatan**: Jika `externalAdReply` tidak muncul di receiver, kemungkinan WhatsApp server strip field tersebut. Fallback otomatis ke plain text message saja. URL struk menggunakan short code `/struk/XXXXXXX` yang redirect ke `/resit/lihat?access_token=...` untuk akses publik tanpa login.
+> **Catatan**: Gambar logo dikirim sebagai native WhatsApp image message dengan caption. Tampil konsisten di sender dan receiver karena gambar diupload langsung ke WhatsApp CDN. URL struk menggunakan short code `/struk/XXXXXXX` yang redirect ke `/resit/lihat?access_token=...` untuk akses publik tanpa login.
 
 ---
 
@@ -366,7 +363,8 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 {
   "phone": "628xxxxxxxxxx",
   "message": "Terima kasih! Total: Rp 100.000. Lihat struk: https://domain.com/struk/VP69O8A",
-  "receipt_url": "https://domain.com/struk/VP69O8A"
+  "receipt_url": "https://domain.com/struk/VP69O8A",
+  "logo_url": "https://domain.com/logo.png"
 }
 ```
 
@@ -375,21 +373,25 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 |-----------|------|----------|-----------|
 | `phone` | String | Ya | Nomor WhatsApp (format: `628xxxxxxxxxx` atau `08xxxxxxxxxx`) |
 | `message` | String | Ya | Pesan teks yang akan dikirim |
-| `receipt_url` | String | Tidak | URL struk untuk auto-extract metadata (OG tags, title, description, image) untuk preview card |
+| `receipt_url` | String | Tidak | URL struk untuk fallback linkPreview jika logo_url tidak tersedia |
+| `logo_url` | String | Tidak | URL logo toko — Baileys upload ke WhatsApp CDN dan kirim sebagai image message dengan caption |
 
-**Fitur Large Thumbnail Preview dengan Auto-Detection:**
+**Fitur Large Thumbnail Preview dengan Image Message:**
 1. Odoo prepare `message` dari template dengan URL struk (short code `/struk/XXXXXXX`)
-2. Odoo kirim ke Baileys API dengan `receipt_url` parameter
-3. **Baileys auto-extract metadata** menggunakan `getUrlInfo()` dari Baileys library:
-   - `getUrlInfo(receipt_url, { thumbnailWidth: 300, timeoutMs: 10000 })` extract metadata dari URL
-   - Result include: `title`, `description`, `jpegThumbnail`, `canonical-url`, `matched-text`
-   - **Struktur pesan**: Gunakan `externalAdReply` dengan `renderLargerThumbnail: true` untuk tampilan besar di atas
-   - Preview card dengan title, body (description), dan jpegThumbnail
-   - **Keuntungan**: Thumbnail besar more eye-catching dibanding compact link preview
-4. WhatsApp menerima pesan dengan externalAdReply yang sudah embedded
-5. Tampilan **large thumbnail di atas pesan** — eye-catching untuk receipt/business preview
-6. **Reliable** — `getUrlInfo()` built-in Baileys, tidak ada external dependency
-7. **Graceful fallback** — jika metadata extraction gagal (timeout/network), plain text message tetap terkirim dengan fallback msgPayload
+2. Odoo kirim ke Baileys API dengan parameter `logo_url` dan `receipt_url`
+3. **Baileys upload logo ke WhatsApp CDN** menggunakan native WhatsApp protokol:
+   - Download logo dari `logo_url`
+   - Upload ke WhatsApp CDN sebagai image (JPEG/PNG)
+   - Embed di `imageMessage` payload
+4. **Pesan dikirim sebagai image + caption**:
+   - Image: Logo toko (ditampilkan penuh di atas, besar dan eye-catching)
+   - Caption: Text message + URL struk di bawah
+   - Tampilan **konsisten di sender dan receiver** karena image diupload ke CDN
+5. **Reliable** — native WhatsApp image message, tidak tergantung WhatsApp crawl atau field stripping
+6. **Graceful fallback**:
+   - Jika `logo_url` gagal (error 404, timeout, malformed), fallback ke `linkPreview` dengan OG tags
+   - Jika `linkPreview` juga gagal, fallback ke plain text message saja
+   - Pesan tetap terkirim dalam semua kondisi
 
 ---
 
@@ -421,7 +423,18 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.1.0.4 (Current - Testing externalAdReply)
+### v17.0.1.0.5 (Current - Image Message dengan Large Thumbnail)
+- **Production: Logo sebagai Image Message (ganti `externalAdReply`)**:
+  - `externalAdReply` tidak muncul di receiver (WhatsApp server strip field) → ganti dengan native image message
+  - Odoo kirim `logo_url` ke Baileys API
+  - Baileys upload logo ke WhatsApp CDN dan kirim sebagai `imageMessage` dengan caption (pesan + URL struk)
+  - Tampilan **gambar logo penuh di atas, teks pesan + URL sebagai caption di bawah**
+  - **Tampil konsisten** di sender dan receiver karena image diupload langsung ke WhatsApp CDN
+  - **Graceful fallback**: Jika `logo_url` tidak tersedia atau upload gagal, fallback ke compact `linkPreview` dengan OG tags
+  - Removed: `getUrlInfo()` dependency (sekarang gunakan native image message)
+  - Logger tetap `warn` untuk visibility error internal Baileys
+
+### v17.0.1.0.4 (Deprecated - Testing externalAdReply)
 - **Experiment: Large Thumbnail Preview dengan `externalAdReply + renderLargerThumbnail`**:
   - Ubah dari `linkPreview` (compact) ke `externalAdReply` dengan `renderLargerThumbnail: true`
   - Ganti metadata extraction dari `link-preview-js` ke `getUrlInfo()` native Baileys
@@ -431,6 +444,7 @@ pos_whatsapp_receipt_baileys/
   - **Testing**: Jika `externalAdReply` tidak muncul di receiver, rollback ke `linkPreview`
   - Removed: `link-preview-js` dependency (sekarang gunakan native `getUrlInfo()`)
   - Logger tetap `warn` untuk visibility error internal Baileys
+  - **Deprecated**: Ternyata `externalAdReply` tidak muncul di receiver (WhatsApp strip field), diganti dengan image message di v17.0.1.0.5
 
 ### v17.0.1.0.3 (Deprecated - linkPreview approach)
 - **CRITICAL FIX: `linkPreview` field structure (WAUrlInfo dengan hyphenated keys)**:
