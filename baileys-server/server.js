@@ -119,7 +119,7 @@ app.post('/send-message', authMiddleware, async (req, res) => {
         return res.status(503).json({ error: 'WhatsApp belum terhubung. Scan QR terlebih dahulu di GET /qr' });
     }
 
-    const { phone, message, receipt_url } = req.body;
+    const { phone, message, receipt_url, logo_url } = req.body;
     if (!phone || !message) {
         return res.status(400).json({ error: 'Field phone dan message wajib diisi' });
     }
@@ -129,32 +129,27 @@ app.post('/send-message', authMiddleware, async (req, res) => {
     try {
         let msgPayload = { text: message };
 
-        if (receipt_url) {
+        if (logo_url) {
+            // Kirim sebagai image message — thumbnail besar, upload ke WA CDN
+            console.log('[image] Sending with logo:', logo_url);
+            msgPayload = {
+                image: { url: logo_url },
+                caption: message,
+            };
+        } else if (receipt_url) {
+            // Fallback: compact link preview card
             try {
                 console.log('[preview] Fetching:', receipt_url);
                 const urlInfo = await getUrlInfo(receipt_url, {
                     thumbnailWidth: 300,
                     timeoutMs: 10000,
                 });
-                console.log('[preview] canonical-url:', urlInfo?.['canonical-url']);
-                console.log('[preview] matched-text:', urlInfo?.['matched-text']);
                 console.log('[preview] title:', urlInfo?.title);
                 console.log('[preview] jpegThumbnail size:', urlInfo?.jpegThumbnail?.length ?? 0);
                 if (urlInfo) {
                     msgPayload = {
                         text: message,
-                        contextInfo: {
-                            externalAdReply: {
-                                title: urlInfo.title,
-                                body: urlInfo.description,
-                                jpegThumbnail: urlInfo.jpegThumbnail,
-                                mediaUrl: receipt_url,
-                                sourceUrl: receipt_url,
-                                mediaType: 1,
-                                showAdAttribution: false,
-                                renderLargerThumbnail: true,
-                            },
-                        },
+                        linkPreview: urlInfo,
                     };
                 }
             } catch (e) {
