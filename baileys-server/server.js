@@ -2,6 +2,7 @@ import 'dotenv/config';
 import makeWASocket, {
     useMultiFileAuthState,
     DisconnectReason,
+    getUrlInfo,
 } from 'baileys';
 import { Boom } from '@hapi/boom';
 import express from 'express';
@@ -118,7 +119,7 @@ app.post('/send-message', authMiddleware, async (req, res) => {
         return res.status(503).json({ error: 'WhatsApp belum terhubung. Scan QR terlebih dahulu di GET /qr' });
     }
 
-    const { phone, message, receipt_url, og_title, og_description, og_image_b64 } = req.body;
+    const { phone, message, receipt_url, preview_url } = req.body;
     if (!phone || !message) {
         return res.status(400).json({ error: 'Field phone dan message wajib diisi' });
     }
@@ -128,20 +129,23 @@ app.post('/send-message', authMiddleware, async (req, res) => {
     try {
         let msgPayload = { text: message };
 
-        if (og_title && receipt_url) {
-            // Gunakan OG metadata yang dikirim langsung dari Odoo — tidak perlu HTTP fetch
-            // Menghindari race condition: short URL belum committed saat Baileys fetch
-            const previewData = {
-                'canonical-url': receipt_url,
-                'matched-text': receipt_url,
-                title: og_title,
-                description: og_description || '',
-            };
-            if (og_image_b64) {
-                previewData.jpegThumbnail = Buffer.from(og_image_b64, 'base64');
+        if (preview_url && receipt_url) {
+            try {
+                // Fetch metadata dari long URL (selalu committed, tidak ada race condition)
+                // receipt_url (short URL) dipakai sebagai matched-text agar cocok dengan URL di teks
+                console.log('[preview] Fetching:', preview_url);
+                const urlInfo = await getUrlInfo(preview_url, {
+                    thumbnailWidth: 300,
+                    timeoutMs: 10000,
+                });
+                if (urlInfo) {
+                    urlInfo['matched-text'] = receipt_url;
+                    msgPayload = { text: message, linkPreview: urlInfo };
+                    console.log('[preview] title:', urlInfo.title, '| thumbnail size:', urlInfo.jpegThumbnail?.length ?? 0);
+                }
+            } catch (e) {
+                console.error('[preview] Error:', e.message);
             }
-            msgPayload = { text: message, linkPreview: previewData };
-            console.log('[preview] title:', og_title, '| thumbnail:', og_image_b64 ? 'ya' : 'tidak');
         }
 
         await sock.sendMessage(jid, msgPayload);
