@@ -19,13 +19,13 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Link struk bisa dibuka tanpa login (public access)
 - **Responsive di mobile**
 - **WhatsApp otomatis generate preview dari OG tags** — kirim plain text, biarkan WhatsApp crawl OG tags untuk generate preview card dengan logo, title, deskripsi
-- **Reliable dan sederhana** — plain text message, tidak perlu kirim image thumbnail atau link preview parsing
-- **Tampilan konsisten** di semua device (Web, Mobile, Desktop) — sama untuk sender dan receiver
+- **Reliable dan sederhana** — plain text message dengan linkPreview OG tags, tidak perlu kirim image atau manual metadata extraction
+- **Tampilan konsisten** di semua device (Web, Mobile, Desktop) — same untuk sender dan receiver
 - Integrasi dengan Baileys server (self-hosted, gratis, open-source, tanpa Chromium)
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
 - **Built-in URL shortener** — otomatis generate short code `/struk/XXXXXXX` per order, disimpan di database
-- **Large Thumbnail Preview** — externalAdReply dengan `renderLargerThumbnail: true` untuk tampilan thumbnail besar di atas pesan
+- **Link Preview dengan OG Tags** — Baileys otomatis extract metadata (title, logo, description) dari halaman struk untuk preview card di WhatsApp
 
 ---
 
@@ -241,25 +241,24 @@ sudo -u odoo psql -d NAMA_DATABASE -c \
 6. Pesan sukses/gagal ditampilkan di bawah input field
 7. Pelanggan menerima pesan WA dengan link struk lengkap yang dapat dibuka tanpa login
 
-### WhatsApp Receipt dengan Large Thumbnail Preview
+### WhatsApp Receipt dengan Link Preview OG Tags
 
 Saat struk dikirim via WhatsApp:
-- **Image Message + Caption**: Logo toko dikirim sebagai gambar WhatsApp dengan teks pesan sebagai caption
-- **Large Thumbnail**: Logo di-upload ke WhatsApp CDN via Baileys dan ditampilkan **sebagai gambar penuh di atas pesan** (lebih eye-catching dibanding compact link preview)
-- **Logo Upload**: Baileys otomatis upload logo toko ke WhatsApp CDN menggunakan native WhatsApp protokol
+- **Plain Text Message dengan Link Preview**: Pesan dikirim sebagai plain text (message + URL struk)
+- **Automatic Metadata Extraction**: Baileys otomatis extract metadata (title, description, logo) dari halaman struk menggunakan OG tags
+- **Link Preview Card**: WhatsApp otomatis generate preview card dari OG tags — ditampilkan sebagai compact card dengan logo toko, judul struk, dan deskripsi
 - **Message Structure**: 
-  - Gambar logo di atas (full-size thumbnail)
-  - Teks pesan dari template + URL struk sebagai caption di bawah
-- **Fallback**: Jika `logo_url` tidak tersedia, fallback otomatis ke compact `linkPreview` dengan OG tags
+  - Teks pesan dari template + URL struk
+  - WhatsApp generate preview card dari OG tags: logo toko, judul "Struk Pembayaran", deskripsi (total + ringkasan item)
 
 **Keuntungan:**
-- **Tampilan menonjol** — logo gambar penuh di atas lebih eye-catching dibanding compact link preview
-- **Konsisten di receiver** — image message dengan caption langsung tertanam, bukan tergantung WhatsApp crawl atau `externalAdReply` stripping
-- **Reliable** — tidak tergantung metadata extraction dari URL, cukup upload logo ke CDN
-- **Graceful fallback** — jika logo_url gagal, fallback ke linkPreview dengan OG tags tetap terkirim
-- **Self-hosted** — semua processing di Baileys server, tidak ada dependency eksternal
+- **Sederhana** — plain text message, tidak perlu kirim image atau parsing manual
+- **Reliable** — native WhatsApp linkPreview behavior, sama seperti paste URL manual
+- **Consistent metadata** — OG tags di halaman struk, tidak tergantung Baileys extraction
+- **Graceful fallback** — jika OG tags tidak tersedia, plain text message tetap terkirim
+- **Self-hosted** — semua OG tags di-generate oleh Odoo, tidak ada dependency eksternal
 
-> **Catatan**: Gambar logo dikirim sebagai native WhatsApp image message dengan caption. Tampil konsisten di sender dan receiver karena gambar diupload langsung ke WhatsApp CDN. URL struk menggunakan short code `/struk/XXXXXXX` yang redirect ke `/resit/lihat?access_token=...` untuk akses publik tanpa login.
+> **Catatan**: Preview card di-generate oleh WhatsApp dari OG tags halaman struk, bukan dari image upload. URL struk menggunakan short code `/struk/XXXXXXX` yang redirect ke `/resit/lihat?access_token=...` untuk akses publik tanpa login. Baileys otomatis timeout 10 detik saat extract metadata agar tidak mengganggu pengiriman pesan.
 
 ---
 
@@ -363,8 +362,7 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 {
   "phone": "628xxxxxxxxxx",
   "message": "Terima kasih! Total: Rp 100.000. Lihat struk: https://domain.com/struk/VP69O8A",
-  "receipt_url": "https://domain.com/struk/VP69O8A",
-  "logo_url": "https://domain.com/logo.png"
+  "receipt_url": "https://domain.com/struk/VP69O8A"
 }
 ```
 
@@ -373,25 +371,22 @@ Endpoint dengan Auth Required membutuhkan header: `x-api-key: API_KEY_ANDA`
 |-----------|------|----------|-----------|
 | `phone` | String | Ya | Nomor WhatsApp (format: `628xxxxxxxxxx` atau `08xxxxxxxxxx`) |
 | `message` | String | Ya | Pesan teks yang akan dikirim |
-| `receipt_url` | String | Tidak | URL struk untuk fallback linkPreview jika logo_url tidak tersedia |
-| `logo_url` | String | Tidak | URL logo toko — Baileys upload ke WhatsApp CDN dan kirim sebagai image message dengan caption |
+| `receipt_url` | String | Ya | URL struk untuk Baileys extract metadata (OG tags) dan generate link preview |
 
-**Fitur Large Thumbnail Preview dengan Image Message:**
+**Fitur Link Preview dengan OG Tags:**
 1. Odoo prepare `message` dari template dengan URL struk (short code `/struk/XXXXXXX`)
-2. Odoo kirim ke Baileys API dengan parameter `logo_url` dan `receipt_url`
-3. **Baileys upload logo ke WhatsApp CDN** menggunakan native WhatsApp protokol:
-   - Download logo dari `logo_url`
-   - Upload ke WhatsApp CDN sebagai image (JPEG/PNG)
-   - Embed di `imageMessage` payload
-4. **Pesan dikirim sebagai image + caption**:
-   - Image: Logo toko (ditampilkan penuh di atas, besar dan eye-catching)
-   - Caption: Text message + URL struk di bawah
-   - Tampilan **konsisten di sender dan receiver** karena image diupload ke CDN
-5. **Reliable** — native WhatsApp image message, tidak tergantung WhatsApp crawl atau field stripping
+2. Odoo kirim ke Baileys API dengan parameter `receipt_url`
+3. **Baileys extract metadata dari URL** menggunakan `getUrlInfo()` (timeout 10 detik):
+   - Fetch halaman struk dan extract OG tags: `og:title`, `og:description`, `og:image`
+   - Parse metadata untuk link preview: title, description, thumbnail
+4. **Pesan dikirim sebagai plain text dengan linkPreview**:
+   - Text: Message dari template + URL struk
+   - LinkPreview: Compact card dengan logo (og:image), judul (og:title), deskripsi (og:description)
+   - Tampilan **konsisten di sender dan receiver** karena menggunakan native WhatsApp linkPreview
+5. **Reliable** — sama seperti paste URL manual di WhatsApp, tidak tergantung image upload atau external dependencies
 6. **Graceful fallback**:
-   - Jika `logo_url` gagal (error 404, timeout, malformed), fallback ke `linkPreview` dengan OG tags
-   - Jika `linkPreview` juga gagal, fallback ke plain text message saja
-   - Pesan tetap terkirim dalam semua kondisi
+   - Jika `getUrlInfo()` timeout (>10 detik) atau error, fallback ke plain text message saja
+   - Pesan tetap terkirim dalam semua kondisi tanpa link preview
 
 ---
 
@@ -423,16 +418,23 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.1.0.5 (Current - Image Message dengan Large Thumbnail)
-- **Production: Logo sebagai Image Message (ganti `externalAdReply`)**:
+### v17.0.1.0.6 (Current - Rollback ke LinkPreview OG Tags)
+- **Rollback: Hapus Image Message, gunakan linkPreview dengan OG Tags**:
+  - Image message di API `/send-message` tidak konsisten tampilan di receiver (WhatsApp crop/scale image)
+  - Rollback ke plain text message + linkPreview dengan OG tags (tested lebih reliable)
+  - Removed: Parameter `logo_url` dari API dan Odoo controller
+  - Simplified: Hanya kirim `phone`, `message`, `receipt_url`
+  - Baileys otomatis extract metadata dari `receipt_url` menggunakan `getUrlInfo()` dengan 10 detik timeout
+  - **Graceful fallback**: Jika metadata extract timeout/error, fallback ke plain text message saja
+  - **Keuntungan**: Plain text + OG tags lebih reliable, konsisten di semua platform, tidak tergantung image processing
+
+### v17.0.1.0.5 (Deprecated - Image Message dengan Large Thumbnail)
+- **Experiment: Logo sebagai Image Message (ganti `externalAdReply`)**:
   - `externalAdReply` tidak muncul di receiver (WhatsApp server strip field) → ganti dengan native image message
   - Odoo kirim `logo_url` ke Baileys API
   - Baileys upload logo ke WhatsApp CDN dan kirim sebagai `imageMessage` dengan caption (pesan + URL struk)
   - Tampilan **gambar logo penuh di atas, teks pesan + URL sebagai caption di bawah**
-  - **Tampil konsisten** di sender dan receiver karena image diupload langsung ke WhatsApp CDN
-  - **Graceful fallback**: Jika `logo_url` tidak tersedia atau upload gagal, fallback ke compact `linkPreview` dengan OG tags
-  - Removed: `getUrlInfo()` dependency (sekarang gunakan native image message)
-  - Logger tetap `warn` untuk visibility error internal Baileys
+  - **Diganti di v17.0.1.0.6** dengan linkPreview OG tags karena image message tidak konsisten tampilan
 
 ### v17.0.1.0.4 (Deprecated - Testing externalAdReply)
 - **Experiment: Large Thumbnail Preview dengan `externalAdReply + renderLargerThumbnail`**:
