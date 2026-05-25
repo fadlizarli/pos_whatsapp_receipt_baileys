@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+baileys-server/node_modules/
+baileys-server/auth_info/
+baileys-server/.env
+baileys-server/baileys.log
