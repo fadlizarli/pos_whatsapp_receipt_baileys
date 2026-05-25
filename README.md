@@ -24,7 +24,7 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Integrasi dengan Baileys server (self-hosted, gratis, open-source, tanpa Chromium)
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
-- URL shortener opsional via YOURLS (self-hosted)
+- **Built-in URL shortener** — otomatis generate short code `/r/XXXXXXX` per order, disimpan di database
 
 ---
 
@@ -197,14 +197,13 @@ Masuk ke **Settings → WhatsApp Receipt**:
 | **API Key** | Bebas ditentukan sendiri — harus sama persis dengan nilai `API_KEY` di file `baileys-server/.env` | `string-acak-rahasia` |
 | **Template Pesan** | Template dengan variabel `{total}`, `{date}`, `{receipt_url}` | Lihat contoh di bawah |
 
-### YOURLS URL Shortener (Opsional)
+### URL Shortener (Built-in)
 
-| Field | Keterangan | Contoh |
-|-------|-----------|--------|
-| **YOURLS URL** | URL server YOURLS | `https://s.domain.com` |
-| **Signature Token** | Token dari YOURLS (Tools > Secure passwordless API call) | `abc123xyz` |
-
-Jika YOURLS dikonfigurasi, link struk di pesan WA akan dipersingkat otomatis.
+Sistem URL shortener sudah **built-in** dan **otomatis**:
+- Setiap order mendapat short code **7 karakter** (huruf besar + angka) yang unik
+- Contoh: `/r/VP69O8A` → redirect ke `/resit/lihat?access_token=...`
+- Disimpan di model `pos.short.url` di database Odoo
+- **Tidak perlu konfigurasi eksternal** — bekerja otomatis saat kirim WA
 
 **Contoh template pesan:**
 
@@ -332,6 +331,14 @@ Jika muncul `{"success": true}` → berhasil.
 
 ---
 
+## API Odoo
+
+| Endpoint | Method | Keterangan | Auth |
+|----------|--------|-----------|------|
+| `/pos/send_whatsapp_receipt` | POST | Kirim struk ke WhatsApp | Required (user) |
+| `/r/<code>` | GET | Redirect short URL ke struk lengkap | Public |
+| `/resit/lihat` | GET | Tampilkan struk lengkap (HTML) | Public |
+
 ## API Baileys Server
 
 | Endpoint | Method | Keterangan | Auth |
@@ -374,11 +381,11 @@ pos_whatsapp_receipt_baileys/
 │   ├── package.json
 │   └── .env.example
 ├── controllers/
-│   └── main.py             ← Endpoint kirim WA + view struk publik
+│   └── main.py             ← Endpoint kirim WA + redirect short URL + view struk publik
 ├── models/
 │   ├── pos_order.py        ← Method send_whatsapp_receipt (via ORM)
 │   ├── res_config_settings.py
-│   └── short_url.py
+│   ├── short_url.py        ← Model pos.short.url: menyimpan short code → long URL mapping
 ├── static/src/
 │   ├── js/receipt_button.js   ← OWL patch ReceiptScreen: auto-fill nomor, handler kirim WA
 │   └── xml/receipt_button.xml ← Template: inline input WhatsApp + tombol hijau + status message
@@ -393,7 +400,17 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.3.0.0 (Current)
+### v17.0.4.0.0 (Current)
+- **Built-in Short URL System** (ganti YOURLS):
+  - Model `pos.short.url` menyimpan `code` → `url` mapping di database Odoo
+  - Generate short code **7 karakter** (huruf besar + angka) otomatis per order
+  - Route `/r/<code>` redirect ke `/resit/lihat?access_token=...`
+  - URL WA jadi lebih pendek dan profesional: `/r/VP69O8A` instead of full URL
+  - **Keuntungan**: Tidak perlu server eksternal YOURLS, fully self-hosted di Odoo
+  - Automatic collision detection — generate ulang jika code sudah ada
+  - Model `pos.short.url` include security rule via `security/ir.model.access.csv`
+
+### v17.0.3.0.0
 - **Upgrade Baileys v6 → v7** (major version jump):
   - Baileys v7 menggunakan **ESM modules** (ES6 import/export) — bukan CommonJS
   - Changed package: `@whiskeysockets/baileys@6.7.9` → `baileys@7.0.0-rc13`
