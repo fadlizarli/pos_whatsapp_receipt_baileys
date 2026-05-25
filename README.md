@@ -24,7 +24,7 @@ Module Odoo 17 untuk mengirim struk POS via WhatsApp menggunakan **Baileys** —
 - Integrasi dengan Baileys server (self-hosted, gratis, open-source, tanpa Chromium)
 - Template pesan yang bisa dikustomisasi
 - Nomor WA otomatis diformat ke format internasional (08xxx → 628xxx)
-- **Built-in URL shortener** — otomatis generate short code `/r/XXXXXXX` per order, disimpan di database
+- **Built-in URL shortener** — otomatis generate short code `/struk/XXXXXXX` per order, disimpan di database
 
 ---
 
@@ -201,7 +201,7 @@ Masuk ke **Settings → WhatsApp Receipt**:
 
 Sistem URL shortener sudah **built-in** dan **otomatis**:
 - Setiap order mendapat short code **7 karakter** (huruf besar + angka) yang unik
-- Contoh: `/r/VP69O8A` → redirect ke `/resit/lihat?access_token=...`
+- Contoh: `/struk/VP69O8A` → redirect ke `/resit/lihat?access_token=...`
 - Disimpan di model `pos.short.url` di database Odoo
 - **Tidak perlu konfigurasi eksternal** — bekerja otomatis saat kirim WA
 
@@ -336,7 +336,7 @@ Jika muncul `{"success": true}` → berhasil.
 | Endpoint | Method | Keterangan | Auth |
 |----------|--------|-----------|------|
 | `/pos/send_whatsapp_receipt` | POST | Kirim struk ke WhatsApp | Required (user) |
-| `/r/<code>` | GET | Redirect short URL ke struk lengkap | Public |
+| `/struk/<code>` | GET | Redirect short URL ke struk lengkap | Public |
 | `/resit/lihat` | GET | Tampilkan struk lengkap (HTML) | Public |
 
 ## API Baileys Server
@@ -400,12 +400,19 @@ pos_whatsapp_receipt_baileys/
 
 ## Changelog
 
-### v17.0.1.0.0 (Current)
+### v17.0.1.0.1 (Current)
+- **Route Changed: `/r/` → `/struk/`** (menghindari konflik dengan Odoo website module):
+  - Odoo website module menggunakan `/r/<path>` untuk internal redirect
+  - Ganti route short URL dari `/r/<code>` ke `/struk/<code>` agar tidak blocked
+  - Dokumentasi dan contoh URL di README sudah updated
+  - URL struk sekarang: `/struk/VP69O8A` instead of `/r/VP69O8A`
+
+### v17.0.1.0.0
 - **Built-in Short URL System** (ganti YOURLS):
   - Model `pos.short.url` menyimpan `code` → `url` mapping di database Odoo
   - Generate short code **7 karakter** (huruf besar + angka) otomatis per order
-  - Route `/r/<code>` redirect ke `/resit/lihat?access_token=...`
-  - URL WA jadi lebih pendek dan profesional: `/r/VP69O8A` instead of full URL
+  - Route `/struk/<code>` redirect ke `/resit/lihat?access_token=...`
+  - URL WA jadi lebih pendek dan profesional: `/struk/VP69O8A` instead of full URL
   - **Keuntungan**: Tidak perlu server eksternal YOURLS, fully self-hosted di Odoo
   - Automatic collision detection — generate ulang jika code sudah ada
   - Model `pos.short.url` include security rule via `security/ir.model.access.csv`
